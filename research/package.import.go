@@ -4,5 +4,5 @@ import (
     "math/rand"
 )
 func main() {
-    fmt.Println("math rand is ", rand.Intn(10))
+    fmt.Println("math rand is", rand.Intn(10))
 }
