@@ -2,7 +2,6 @@
 go build ./tcp.server.go
 
 1. ./tcp.server 1990 4096 >/dev/null
-one client read from server.
 ----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
 usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw 
  24  41  27   0   0   8|   0    12k| 632M  632M|   0     0 |  10k   27k

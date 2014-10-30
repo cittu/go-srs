@@ -17,7 +17,7 @@ func main() {
     fmt.Println("tcp client to recv bytes from server")
     if len(os.Args) <= 2 {
         fmt.Println("Usage:", os.Args[0], "<port> <packet_bytes>")
-        fmt.Println("   port: the listen port.")
+        fmt.Println("   port: the port to connect to.")
         fmt.Println("   packet_bytes: the bytes for packet to send.")
         fmt.Println("For example:")
         fmt.Println("   ", os.Args[0], 1990, 4096)
