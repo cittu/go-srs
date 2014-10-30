@@ -48,6 +48,15 @@ int main(int argc, char** argv)
     }
     srs_trace("connect server success. fd=%d", fd);
     
+    // get the sockoptions
+    int sock_recv_buffer = 0;
+    socklen_t nb_sock_recv_buffer = sizeof(int);
+    if (getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &sock_recv_buffer, &nb_sock_recv_buffer) < 0) {
+        srs_trace("get sockopt failed.");
+        return -1;
+    }
+    srs_trace("SO_RCVBUF=%d", sock_recv_buffer);
+    
     char b[4096];
     for (;;) {
         ssize_t nb_recv = recv(fd, b, sizeof(b), 0);

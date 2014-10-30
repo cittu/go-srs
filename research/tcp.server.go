@@ -1,11 +1,15 @@
 /**
-go build ./tcp.server.go
+1. set packet to 4096
+go build ./tcp.server.go && ./tcp.server 1990 4096 >/dev/null
 
-1. ./tcp.server 1990 4096 >/dev/null
 ----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
 usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw 
- 24  41  27   0   0   8|   0    12k| 632M  632M|   0     0 |  10k   27k
- 22  44  27   0   0   7|   0     0 | 645M  645M|   0     0 |9953    26k
+ 22  30  34   0   0  14|   0     0 | 995M  995M|   0     0 |4403    11k
+ 23  31  35   0   0  11|   0    24k|1005M 1005M|   0     0 |4629    11k
+ 
+  PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND                                                                                                       
+ 9651 winlin    20   0  115m 8244 1284 R 125.2  0.4   3:35.25 ./tcp.client 1990 4096                                                                                        
+ 9530 winlin    20   0  115m 8364 1392 S 102.6  0.4   2:57.66 ./tcp.server 1990 4096  
 */
 package main
 import (
@@ -44,7 +48,12 @@ func main() {
     fmt.Println("packet_bytes is", packet_bytes)
     
     listenEP := fmt.Sprintf(":%d", listen_port)
-    ln, err := net.Listen("tcp", listenEP)
+    addr, err := net.ResolveTCPAddr("tcp4", listenEP)
+    if err != nil {
+        fmt.Println("resolve addr err", err)
+        return
+    }
+    ln, err := net.ListenTCP("tcp", addr)
     if err != nil {
         fmt.Println("listen err", err)
         return
@@ -53,19 +62,33 @@ func main() {
     fmt.Println("listen ok at", listenEP)
     
     for {
-        conn, err := ln.Accept()
+        conn, err := ln.AcceptTCP()
         if err != nil {
             fmt.Println("accept err", err)
             continue
         }
         fmt.Println("got a client", conn)
+        
         go handleConnection(conn, packet_bytes)
     }
 }
 
-func handleConnection(conn net.Conn, packet_bytes int) {
+func handleConnection(conn *net.TCPConn, packet_bytes int) {
     defer conn.Close()
     fmt.Println("handle connection", conn)
+    
+    if err := conn.SetNoDelay(false); err != nil {
+        fmt.Println("set no delay to false failed.")
+        return
+    }
+    fmt.Println("set no delay to false ok.")
+    
+    SO_SNDBUF := 16384
+    if err := conn.SetWriteBuffer(SO_SNDBUF); err != nil {
+        fmt.Println("set send SO_SNDBUF failed.")
+        return
+    }
+    fmt.Println("set send SO_SNDBUF to", SO_SNDBUF, "ok.")
     
     b := make([]byte, packet_bytes)
     fmt.Println("write", len(b), "bytes to conn")

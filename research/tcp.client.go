@@ -37,13 +37,31 @@ func main() {
     fmt.Println("packet_bytes is", packet_bytes)
     
     serverEP := fmt.Sprintf(":%d", server_port)
-    conn, err := net.Dial("tcp", serverEP)
+    addr, err := net.ResolveTCPAddr("tcp4", serverEP)
+    if err != nil {
+        fmt.Println("resolve addr failed, err is", err)
+        return
+    }
+    conn, err := net.DialTCP("tcp", nil, addr)
     if err != nil {
         fmt.Println("connect server failed, err is", err)
         return
     }
     defer conn.Close()
     fmt.Println("connected at", serverEP)
+    
+    if err := conn.SetNoDelay(false); err != nil {
+        fmt.Println("set no delay to false failed.")
+        return
+    }
+    fmt.Println("set no delay to false ok.")
+    
+    SO_RCVBUF := 87380
+    if err := conn.SetReadBuffer(SO_RCVBUF); err != nil {
+        fmt.Println("set send SO_RCVBUF failed.")
+        return
+    }
+    fmt.Println("set send SO_RCVBUF to", SO_RCVBUF, "ok.")
     
     b := make([]byte, packet_bytes)
     for {
