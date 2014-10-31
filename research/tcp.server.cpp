@@ -1,5 +1,4 @@
 /**
-
 1. set packet to 4096
 g++ tcp.server.cpp -g -O0 -o tcp.server && ./tcp.server 1990 4096 >/dev/null 
 
