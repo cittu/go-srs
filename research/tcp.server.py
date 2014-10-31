@@ -2,14 +2,14 @@
 1. set packet to 4096
 python tcp.server.py 1990 4096 >/dev/null
 
-  PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND                                                                                                       
- 5157 winlin    20   0  157m 5780 2808 R 100.0  0.3   0:34.11 python tcp.client.py 1990 4096                                                                                
- 5140 winlin    20   0  157m 5932 2824 S 28.2  0.3   0:09.84 python tcp.server.py 1990 4096 
-
 ----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
 usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw 
  20   5  63   0   0  12|   0   144k| 245M  245M|   0     0 |2597  2896 
  21   6  63   0   0  10|   0  4096B| 251M  251M|   0     0 |2714  3015 
+
+  PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND                                                                                                       
+ 5157 winlin    20   0  157m 5780 2808 R 100.0  0.3   0:34.11 python tcp.client.py 1990 4096                                                                                
+ 5140 winlin    20   0  157m 5932 2824 S 28.2  0.3   0:09.84 python tcp.server.py 1990 4096 
 '''
 import socket, sys
 if len(sys.argv) <= 2:
