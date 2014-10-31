@@ -1,15 +1,32 @@
 /**
-1. set packet to 4096
+================================================================================================
+1. VirtualBox, Thinkpad, T430, 2CPU, 4096B/packet, S:GO, C:GO
 go build ./tcp.server.go && ./tcp.server 1990 4096 >/dev/null
+go build ./tcp.client.go && ./tcp.client 1990 4096 >/dev/null
 
 ----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
 usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw 
- 22  30  34   0   0  14|   0     0 | 995M  995M|   0     0 |4403    11k
- 23  31  35   0   0  11|   0    24k|1005M 1005M|   0     0 |4629    11k
+ 17  34  30   0   0  19|   0     0 | 657M  657M|   0     0 |6183    22k
+ 16  32  31   0   0  20|   0     0 | 655M  655M|   0     0 |6205    22k
  
+  PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND                                                                                                     
+ 5467 winlin    20   0  115m 2156 1276 S 129.1  0.1   0:20.80 ./tcp.client 1990 4096                                                                                        
+ 5415 winlin    20   0  180m 2356 1404 R 100.8  0.1   1:36.31 ./tcp.server 1990 4096 
+ 
+================================================================================================
+2. VirtualBox, Thinkpad, T430, 2CPU, 4096B/packet, S:GO, C:C++
+go build ./tcp.server.go && ./tcp.server 1990 4096 >/dev/null
+g++ tcp.client.cpp -g -O0 -o tcp.client && ./tcp.client 1990 4096 >/dev/null 
+
+----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
+usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw 
+  7  17  51   0   0  25|   0     0 | 680M  680M|   0     0 |2207    48k
+  7  15  52   0   0  26|   0     0 | 680M  680M|   0     0 |2228    48k
+  
+  PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND             
   PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND                                                                                                       
- 9651 winlin    20   0  115m 8244 1284 R 125.2  0.4   3:35.25 ./tcp.client 1990 4096                                                                                        
- 9530 winlin    20   0  115m 8364 1392 S 102.6  0.4   2:57.66 ./tcp.server 1990 4096  
+ 5415 winlin    20   0  169m 2220 1404 R 100.4  0.1   0:27.56 ./tcp.server 1990 4096                                                                                        
+ 5424 winlin    20   0 11648  900  764 R 85.1  0.0   0:23.47 ./tcp.client 1990 4096   
 */
 package main
 import (
@@ -77,7 +94,7 @@ func handleConnection(conn *net.TCPConn, packet_bytes int) {
     defer conn.Close()
     fmt.Println("handle connection", conn)
     
-    if err := conn.SetNoDelay(false); err != nil {
+    /*if err := conn.SetNoDelay(false); err != nil {
         fmt.Println("set no delay to false failed.")
         return
     }
@@ -88,7 +105,7 @@ func handleConnection(conn *net.TCPConn, packet_bytes int) {
         fmt.Println("set send SO_SNDBUF failed.")
         return
     }
-    fmt.Println("set send SO_SNDBUF to", SO_SNDBUF, "ok.")
+    fmt.Println("set send SO_SNDBUF to", SO_SNDBUF, "ok.")*/
     
     b := make([]byte, packet_bytes)
     fmt.Println("write", len(b), "bytes to conn")

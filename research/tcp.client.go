@@ -50,7 +50,7 @@ func main() {
     defer conn.Close()
     fmt.Println("connected at", serverEP)
     
-    if err := conn.SetNoDelay(false); err != nil {
+    /*if err := conn.SetNoDelay(false); err != nil {
         fmt.Println("set no delay to false failed.")
         return
     }
@@ -61,7 +61,7 @@ func main() {
         fmt.Println("set send SO_RCVBUF failed.")
         return
     }
-    fmt.Println("set send SO_RCVBUF to", SO_RCVBUF, "ok.")
+    fmt.Println("set send SO_RCVBUF to", SO_RCVBUF, "ok.")*/
     
     b := make([]byte, packet_bytes)
     for {
