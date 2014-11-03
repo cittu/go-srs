@@ -87,3 +87,5 @@ echo "about Cherrypy:" &&
 echo "      python cherrypy.api.py 8080" &&
 echo "about go martini:" &&
 echo "      go build -gcflags '-N -l' -o objs/go.martini ./go.martini.go && ./objs/go.martini 1 8080"
+echo "about benchmarks:" &&
+echo "      ab-benchmark"
