@@ -1,7 +1,7 @@
 /**
 ================================================================================================
 1. VirtualBox, Thinkpad, T430, 2CPU, 4096B/packet, S:GO, C:GO
-go build ./tcp.server.go && ./tcp.server 1990 4096 >/dev/null
+go build ./tcp.server.go && ./tcp.server 1 1990 4096 >/dev/null
 go build ./tcp.client.go && ./tcp.client 1990 4096 >/dev/null
 
 ----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
@@ -15,7 +15,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
  
 ================================================================================================
 2. VirtualBox, Thinkpad, T430, 2CPU, 4096B/packet, S:GO, C:C++
-go build ./tcp.server.go && ./tcp.server 1990 4096 >/dev/null
+go build ./tcp.server.go && ./tcp.server 1 1990 4096 >/dev/null
 g++ tcp.client.cpp -g -O0 -o tcp.client && ./tcp.client 1990 4096 >/dev/null 
 
 ----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
@@ -34,35 +34,45 @@ import (
     "net"
     "os"
     "strconv"
+    "runtime"
 )
 
 func main() {
     var (
-        listen_port, packet_bytes int
+        nb_cpus, listen_port, packet_bytes int
         err error
     )
     
     fmt.Println("tcp server to send random data to clients.")
     if len(os.Args) <= 2 {
-        fmt.Println("Usage:", os.Args[0], "<port> <packet_bytes>")
+        fmt.Println("Usage:", os.Args[0], "<cpus> <port> <packet_bytes>")
+        fmt.Println("   cpus: how many cpu to use.")
         fmt.Println("   port: the listen port.")
         fmt.Println("   packet_bytes: the bytes for packet to send.")
         fmt.Println("For example:")
-        fmt.Println("   ", os.Args[0], 1990, 4096)
+        fmt.Println("   ", os.Args[0], 1, 1990, 4096)
         return
     }
     
-    if listen_port, err = strconv.Atoi(os.Args[1]); err != nil {
-        fmt.Println("invalid option port", os.Args[1], "and err is", err)
+    if nb_cpus, err = strconv.Atoi(os.Args[1]); err != nil {
+        fmt.Println("invalid option cpus", os.Args[1], "and err is", err)
+        return
+    }
+    fmt.Println("nb_cpus is", nb_cpus)
+    
+    if listen_port, err = strconv.Atoi(os.Args[2]); err != nil {
+        fmt.Println("invalid option port", os.Args[2], "and err is", err)
         return
     }
     fmt.Println("listen_port is", listen_port)
     
-    if packet_bytes, err = strconv.Atoi(os.Args[2]); err != nil {
-        fmt.Println("invalid packet_bytes port", os.Args[2], "and err is", err)
+    if packet_bytes, err = strconv.Atoi(os.Args[3]); err != nil {
+        fmt.Println("invalid packet_bytes port", os.Args[3], "and err is", err)
         return
     }
     fmt.Println("packet_bytes is", packet_bytes)
+    
+    runtime.GOMAXPROCS(nb_cpus)
     
     listenEP := fmt.Sprintf(":%d", listen_port)
     addr, err := net.ResolveTCPAddr("tcp4", listenEP)
