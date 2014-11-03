@@ -23,7 +23,7 @@ if [[ ! -f $release/nginx/sbin/nginx ]]; then
     echo "build ngx_openresty-1.7.0.1" &&
     cd $objs &&
     rm -rf ngx_openresty-1.7.0.1 &&
-    wget $WEB_ROOT/3rdparty/ngx_openresty-1.7.0.1.tar.gz -O ngx_openresty-1.7.0.1.tar.gz
+    wget $WEB_ROOT/3rdparty/ngx_openresty-1.7.0.1.tar.gz -O ngx_openresty-1.7.0.1.tar.gz &&
     tar xf ngx_openresty-1.7.0.1.tar.gz && 
     cd ngx_openresty-1.7.0.1 &&
     ./configure --prefix=$release \
@@ -40,6 +40,19 @@ else
     echo "ngx_openresty-1.7.0.1 ok"
 fi &&
 
+if [[ ! -f $objs/CherryPy-3.2.2/setup.py ]]; then
+    echo "build CherryPy-3.2.2" &&
+    cd $objs &&
+    rm -rf CherryPy-3.2.2 &&
+    wget $WEB_ROOT/3rdparty/CherryPy-3.2.2.tar.gz -O CherryPy-3.2.2.tar.gz &&
+    tar xf CherryPy-3.2.2.tar.gz && 
+    cd CherryPy-3.2.2 &&
+    sudo python setup.py install &&
+    echo "CherryPy-3.2.2 ok"
+else
+    echo "CherryPy-3.2.2 ok"
+fi &&
+
 # lua api
 # @see bravoserver/trunk/src/p2p/api
 echo "build lua api" &&
@@ -54,9 +67,15 @@ rm -f nginx.conf && cp $workdir/conf/nginx.conf . &&
 sed -i "s/nobody/`whoami`/g" nginx.conf &&
 sed -i "s|ROOT_DIR|$objs/_release/nginx|g" nginx.conf &&
 
+# for cherrypy
+echo "create static-dir for cherrypy" &&
+cd $workdir && mkdir -p static-dir &&
+
 # about
 echo "about nginx-lua(v2):" &&
 echo "      sudo killall nginx; sudo ./objs/_release/nginx/sbin/nginx" &&
 echo "      sudo killall -1 nginx" &&
-echo "      tailf objs/_release/nginx/logs/error.log"
-echo "      http://dev:8080/api/v3/json"
+echo "      tailf objs/_release/nginx/logs/error.log" &&
+echo "      http://dev:8080/api/v3/json" &&
+echo "about Cherrypy:" &&
+echo "      python cherrypy.api.py 8080"
