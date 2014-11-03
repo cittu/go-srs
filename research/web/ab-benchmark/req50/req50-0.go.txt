@@ -1,0 +1,45 @@
+This is ApacheBench, Version 2.3 <$Revision: 655654 $>
+Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
+Licensed to The Apache Software Foundation, http://www.apache.org/
+
+Benchmarking 127.0.0.1 (be patient)
+
+
+Server Software:        GoMartini/1.0
+Server Hostname:        127.0.0.1
+Server Port:            8080
+
+Document Path:          /api/v3/json
+Document Length:        43 bytes
+
+Concurrency Level:      10
+Time taken for tests:   15.971 seconds
+Complete requests:      100000
+Failed requests:        0
+Write errors:           0
+Total transferred:      18300000 bytes
+HTML transferred:       4300000 bytes
+Requests per second:    6261.51 [#/sec] (mean)
+Time per request:       1.597 [ms] (mean)
+Time per request:       0.160 [ms] (mean, across all concurrent requests)
+Transfer rate:          1119.00 [Kbytes/sec] received
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        0    0   0.1      0       2
+Processing:     0    2   0.4      1       7
+Waiting:        0    1   0.4      1       7
+Total:          0    2   0.4      2       7
+ERROR: The median and mean for the processing time are more than twice the standard
+       deviation apart. These results are NOT reliable.
+
+Percentage of the requests served within a certain time (ms)
+  50%      2
+  66%      2
+  75%      2
+  80%      2
+  90%      2
+  95%      2
+  98%      3
+  99%      3
+ 100%      7 (longest request)
