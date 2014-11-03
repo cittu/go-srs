@@ -71,6 +71,12 @@ sed -i "s|ROOT_DIR|$objs/_release/nginx|g" nginx.conf &&
 echo "create static-dir for cherrypy" &&
 cd $workdir && mkdir -p static-dir &&
 
+# for go martini
+echo "go get martini" &&
+go get github.com/go-martini/martini &&
+cd $GOPATH/src/github.com/go-martini/martini &&
+(git checkout master; git branch -d 1.0; git checkout v1.0 -b 1.0) &&
+
 # about
 echo "about nginx-lua(v2):" &&
 echo "      sudo killall nginx; sudo ./objs/_release/nginx/sbin/nginx" &&
@@ -78,4 +84,6 @@ echo "      sudo killall -1 nginx" &&
 echo "      tailf objs/_release/nginx/logs/error.log" &&
 echo "      http://dev:8080/api/v3/json" &&
 echo "about Cherrypy:" &&
-echo "      python cherrypy.api.py 8080"
+echo "      python cherrypy.api.py 8080" &&
+echo "about go martini:" &&
+echo "      go build -o objs/go.martini ./go.martini.go && ./objs/go.martini 8080"
