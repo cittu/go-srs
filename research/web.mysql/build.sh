@@ -109,6 +109,17 @@ else
     echo "go-martini ok"
 fi &&
 
+# for go mysql
+if [[ ! -d $GOPATH/src/github.com/go-sql-driver/mysql ]]; then
+    echo "go get mysql" &&
+    go get github.com/go-sql-driver/mysql &&
+    cd $GOPATH/src/github.com/go-sql-driver/mysql &&
+    (git checkout master; git branch -d v1.2; git checkout v1.2 -b v1.2) &&
+    echo "go-mysql ok"
+else
+    echo "go-mysql ok"
+fi &&
+
 # about
 echo "for mysql-python, install:" &&
 echo "      sudo yum install -y mysql-devel python-devel" &&
@@ -122,7 +133,7 @@ echo "      tailf objs/_release/nginx/logs/error.log" &&
 echo "about Cherrypy:" &&
 echo "      python cherrypy.api.py 8080 localhost 3306 root test srs_go" &&
 echo "about go martini:" &&
-echo "      go build -o objs/go.martini ./go.martini.go && ./objs/go.martini 1 8080"
+echo "      go build -o objs/go.martini ./go.martini.go && ./objs/go.martini 1 8080 root:test@/srs_go"
 echo "about benchmarks:" &&
 echo "      ab-benchmark"
 echo "access the url:" &&
