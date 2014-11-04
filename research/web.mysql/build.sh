@@ -32,8 +32,8 @@ if [[ ! -f $release/nginx/sbin/nginx ]]; then
     echo "dynamic link lua" &&
     make && make install &&
     echo "static link lua" &&
-    rm -f build/nginx-1.7.0/objs/nginx &&
-    sed -i "s|-lluajit-5.1|$release/luajit/lib/libluajit-5.1.a|g" build/nginx-1.7.0/objs/Makefile &&
+    rm -f build/nginx-1.7.4/objs/nginx &&
+    sed -i "s|-lluajit-5.1|$release/luajit/lib/libluajit-5.1.a|g" build/nginx-1.7.4/objs/Makefile &&
     make && make install &&
     echo "ngx_openresty-1.7.4.1 ok"
 else
@@ -115,6 +115,7 @@ echo "      sudo yum install -y mysql-devel python-devel" &&
 echo "install the database:" &&
 echo "      mysql -uroot -ptest < db.sql" &&
 echo "about nginx-lua(v2):" &&
+echo "      vi api/v3/servers.lua # to modify the db parameters" &&
 echo "      sudo killall nginx; sudo ./objs/_release/nginx/sbin/nginx" &&
 echo "      sudo killall -1 nginx" &&
 echo "      tailf objs/_release/nginx/logs/error.log" &&
@@ -125,5 +126,8 @@ echo "      go build -gcflags '-N -l' -o objs/go.martini ./go.martini.go && ./ob
 echo "about benchmarks:" &&
 echo "      ab-benchmark"
 echo "access the url:" &&
-echo "      http://dev:8080/api/v3/servers?action=create;mac_addr=08:00:27:EF:39:DF;ip_addr=192.168.1.173;hostname=dev"
-echo "      http://dev:8080/api/v3/servers?action=get;start=0;count=10;sort=desc"
+echo "      http://dev:8080/api/v3/servers?action=create&mac_addr=08:00:27:EF:39:DF&ip_addr=192.168.1.173&hostname=dev"
+echo "      http://dev:8080/api/v3/servers?action=get&start=0&count=10&sort=desc"
+echo "access the url by cli:" &&
+echo "      http://dev:8080/api/v3/servers?action=create\&mac_addr=08:00:27:EF:39:DF\&ip_addr=192.168.1.173\&hostname=dev"
+echo "      http://dev:8080/api/v3/servers?action=get\&start=0\&count=10\&sort=desc"

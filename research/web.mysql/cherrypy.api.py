@@ -176,12 +176,12 @@ class RESTServer(object):
     def __init__(self):
         pass
     # request:
-    #   action=create;mac_addr=08:00:27:EF:39:DF;ip_addr=192.168.1.173;hostname=dev
+    #   action=create&mac_addr=08:00:27:EF:39:DF&ip_addr=192.168.1.173&hostname=dev
     # response:
     #   {"code":0, "id":201}
     #
     # request:
-    #   action=get;start=0;count=10;sort=desc
+    #   action=get&start=0&count=10&sort=desc
     # response:
     #   {"code":0, "data":[
     #       {"id":200, "mac_addr":"08:00:27:EF:39:DF", "ip_addr":"192.168.1.173", "hostname":"dev"}
