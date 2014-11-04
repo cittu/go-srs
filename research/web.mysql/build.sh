@@ -20,12 +20,12 @@ echo "objs: $objs" &&
 echo "release: $release" &&
 
 if [[ ! -f $release/nginx/sbin/nginx ]]; then
-    echo "build ngx_openresty-1.7.0.1" &&
+    echo "build ngx_openresty-1.7.4.1" &&
     cd $objs &&
-    rm -rf ngx_openresty-1.7.0.1 &&
-    wget $WEB_ROOT/3rdparty/ngx_openresty-1.7.0.1.tar.gz -O ngx_openresty-1.7.0.1.tar.gz &&
-    tar xf ngx_openresty-1.7.0.1.tar.gz && 
-    cd ngx_openresty-1.7.0.1 &&
+    rm -rf ngx_openresty-1.7.4.1 &&
+    wget $WEB_ROOT/3rdparty/ngx_openresty-1.7.4.1.tar.gz -O ngx_openresty-1.7.4.1.tar.gz &&
+    tar xf ngx_openresty-1.7.4.1.tar.gz && 
+    cd ngx_openresty-1.7.4.1 &&
     ./configure --prefix=$release \
         --with-luajit --with-http_stub_status_module --without-http_redis2_module \
         --with-http_iconv_module --with-http_mp4_module --with-http_flv_module --with-http_realip_module &&
@@ -35,9 +35,23 @@ if [[ ! -f $release/nginx/sbin/nginx ]]; then
     rm -f build/nginx-1.7.0/objs/nginx &&
     sed -i "s|-lluajit-5.1|$release/luajit/lib/libluajit-5.1.a|g" build/nginx-1.7.0/objs/Makefile &&
     make && make install &&
-    echo "ngx_openresty-1.7.0.1 ok"
+    echo "ngx_openresty-1.7.4.1 ok"
 else
-    echo "ngx_openresty-1.7.0.1 ok"
+    echo "ngx_openresty-1.7.4.1 ok"
+fi &&
+
+# for nginx-lua mysql
+# https://github.com/openresty/lua-resty-mysql
+if [[ ! -f $workdir/api/v3/mysql.lua ]]; then
+    cd $objs &&
+    rm -rf lua-resty-mysql &&
+    git clone https://github.com/openresty/lua-resty-mysql.git &&
+    cd lua-resty-mysql &&
+    (git checkout master; git branch -d v0.15; git checkout v0.15 -b v0.15) &&
+    cd $workdir/api/v3 && rm -f mysql.lua && ln -sf ../../objs/lua-resty-mysql/lib/resty/mysql.lua . &&
+    echo "lua-resty-mysql ok"
+else
+    echo "lua-resty-mysql ok"
 fi &&
 
 if [[ ! -f $objs/CherryPy-3.2.2/setup.py ]]; then
@@ -51,6 +65,19 @@ if [[ ! -f $objs/CherryPy-3.2.2/setup.py ]]; then
     echo "CherryPy-3.2.2 ok"
 else
     echo "CherryPy-3.2.2 ok"
+fi &&
+
+if [[ ! -f $objs/MySQL-python-1.2.3c1/setup.py ]]; then
+    echo "build MySQL-python-1.2.3c1" &&
+    cd $objs &&
+    rm -rf MySQL-python-1.2.3c1 &&
+    wget $WEB_ROOT/3rdparty/MySQL-python-1.2.3c1.zip -O MySQL-python-1.2.3c1.zip &&
+    unzip -q MySQL-python-1.2.3c1.zip && 
+    cd MySQL-python-1.2.3c1 &&
+    sudo python setup.py install &&
+    echo "MySQL-python-1.2.3c1 ok"
+else
+    echo "MySQL-python-1.2.3c1 ok"
 fi &&
 
 # lua api
@@ -72,20 +99,31 @@ echo "create static-dir for cherrypy" &&
 cd $workdir && mkdir -p static-dir &&
 
 # for go martini
-echo "go get martini" &&
-go get github.com/go-martini/martini &&
-cd $GOPATH/src/github.com/go-martini/martini &&
-(git checkout master; git branch -d 1.0; git checkout v1.0 -b 1.0) &&
+if [[ ! -f $GOPATH/src/github.com/go-martini/martini/martini.go ]]; then
+    echo "go get martini" &&
+    go get github.com/go-martini/martini &&
+    cd $GOPATH/src/github.com/go-martini/martini &&
+    (git checkout master; git branch -d v1.0; git checkout v1.0 -b v1.0) &&
+    echo "go-martini ok"
+else
+    echo "go-martini ok"
+fi &&
 
 # about
+echo "for mysql-python, install:" &&
+echo "      sudo yum install -y mysql-devel python-devel" &&
+echo "install the database:" &&
+echo "      mysql -uroot -ptest < db.sql" &&
 echo "about nginx-lua(v2):" &&
 echo "      sudo killall nginx; sudo ./objs/_release/nginx/sbin/nginx" &&
 echo "      sudo killall -1 nginx" &&
 echo "      tailf objs/_release/nginx/logs/error.log" &&
-echo "      http://dev:8080/api/v3/json" &&
 echo "about Cherrypy:" &&
-echo "      python cherrypy.api.py 8080" &&
+echo "      python cherrypy.api.py 8080 localhost 3306 root test srs_go" &&
 echo "about go martini:" &&
 echo "      go build -gcflags '-N -l' -o objs/go.martini ./go.martini.go && ./objs/go.martini 1 8080"
 echo "about benchmarks:" &&
 echo "      ab-benchmark"
+echo "access the url:" &&
+echo "      http://dev:8080/api/v3/servers?action=create;mac_addr=08:00:27:EF:39:DF;ip_addr=192.168.1.173;hostname=dev"
+echo "      http://dev:8080/api/v3/servers?action=get;start=0;count=10;sort=desc"

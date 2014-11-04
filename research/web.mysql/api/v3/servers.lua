@@ -1,4 +1,5 @@
 local cjson = require "cjson"
+local mysql = require "mysql"
 
 local ret = {}
 ret["code"] = 0
