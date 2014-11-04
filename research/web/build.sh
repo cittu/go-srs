@@ -86,6 +86,6 @@ echo "      http://dev:8080/api/v3/json" &&
 echo "about Cherrypy:" &&
 echo "      python cherrypy.api.py 8080" &&
 echo "about go martini:" &&
-echo "      go build -gcflags '-N -l' -o objs/go.martini ./go.martini.go && ./objs/go.martini 1 8080"
+echo "      go build -o objs/go.martini ./go.martini.go && ./objs/go.martini 1 8080"
 echo "about benchmarks:" &&
 echo "      ab-benchmark"

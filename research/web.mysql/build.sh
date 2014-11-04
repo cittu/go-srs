@@ -122,7 +122,7 @@ echo "      tailf objs/_release/nginx/logs/error.log" &&
 echo "about Cherrypy:" &&
 echo "      python cherrypy.api.py 8080 localhost 3306 root test srs_go" &&
 echo "about go martini:" &&
-echo "      go build -gcflags '-N -l' -o objs/go.martini ./go.martini.go && ./objs/go.martini 1 8080"
+echo "      go build -o objs/go.martini ./go.martini.go && ./objs/go.martini 1 8080"
 echo "about benchmarks:" &&
 echo "      ab-benchmark"
 echo "access the url:" &&
