@@ -1,5 +1,5 @@
 /**
-g++ tcp.client.cpp -g -O0 -o tcp.client && ./tcp.client 1990 4096 >/dev/null 
+g++ tcp.client.cpp -g -O0 -o tcp.client && ./tcp.client 1990 4096 
 */
 #include <unistd.h>
 #include <stdio.h>
@@ -65,8 +65,8 @@ int main(int argc, char** argv)
             ::close(fd);
             break;
         }
-        srs_trace("recv bytes ok, nb_recv=%d", nb_recv);
     }
+    srs_trace("completed");
     
     return 0;
 }

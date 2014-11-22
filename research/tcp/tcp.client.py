@@ -1,5 +1,5 @@
 '''
-python tcp.client.py 1990 4096 >/dev/null
+python tcp.client.py 1990 4096
 '''
 import socket, sys
 if len(sys.argv) <= 2:
@@ -22,6 +22,6 @@ print("connect socket success.")
     
 while True:
     data = s.recv(1024)
-    if not data: break
-    print("recv %d bytes"%len(data))
+    if not data: 
+        break
 s.close()

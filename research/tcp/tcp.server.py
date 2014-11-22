@@ -1,8 +1,8 @@
 '''
 ================================================================================================
 1. VirtualBox, Thinkpad, T430, 2CPU, 4096B/packet, S:Python, C:Python
-python tcp.server.py 1990 4096 >/dev/null
-python tcp.client.py 1990 4096 >/dev/null
+python tcp.server.py 1990 4096
+python tcp.client.py 1990 4096
 
 ----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
 usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw 
@@ -15,8 +15,8 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 
 ================================================================================================
 2. VirtualBox, Thinkpad, T430, 2CPU, 4096B/packet, S:Python, C:C++
-python tcp.server.py 1990 4096 >/dev/null
-g++ tcp.client.cpp -g -O0 -o tcp.client && ./tcp.client 1990 4096 >/dev/null 
+python tcp.server.py 1990 4096
+g++ tcp.client.cpp -g -O0 -o tcp.client && ./tcp.client 1990 4096 
 
 ----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
 usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw 
@@ -61,7 +61,6 @@ while True:
     while True:
         try:
             conn.send(b)
-            print("send %d bytes"%len(b))
         except Exception, ex:
             print("ex:%s"%ex)
             break

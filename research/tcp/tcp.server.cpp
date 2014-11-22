@@ -1,8 +1,8 @@
 /**
 ================================================================================================
 1. VirtualBox, Thinkpad, T430, 2CPU, 4096B/packet, S:C++, C:C++
-g++ tcp.server.cpp -g -O0 -o tcp.server && ./tcp.server 1990 4096 >/dev/null 
-g++ tcp.client.cpp -g -O0 -o tcp.client && ./tcp.client 1990 4096 >/dev/null 
+g++ tcp.server.cpp -g -O0 -o tcp.server && ./tcp.server 1990 4096 
+g++ tcp.client.cpp -g -O0 -o tcp.client && ./tcp.client 1990 4096 
 
 ----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
 usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw 
@@ -98,7 +98,6 @@ int main(int argc, char** argv)
                 ::close(conn);
                 break;
             }
-            srs_trace("send bytes ok.");
         }
     }
     
