@@ -5,12 +5,12 @@ g++ tcp.client.readv.cpp -g -O0 -o tcp.client && ./tcp.client 127.0.0.1 1990 64 
 
 ----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
 usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw 
-  0   6  92   0   0   1|   0    11k|1073M 1073M|   0     0 |2790    81k
-  0   6  93   0   0   1|   0  7782B|1049M 1049M|   0     0 |2536    76k
+  0   6  93   0   0   1|   0    15k|1742M 1742M|   0     0 |2578    30k
+  0   6  93   0   0   1|   0    13k|1779M 1779M|   0     0 |2412    30k
   
-  PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND
-32573 winlin    20   0 11744  892  756 R 99.9  0.0  17:56.88 ./tcp.server 1990 4096
- 2880 winlin    20   0 11740  900  764 S 85.3  0.0   0:32.53 ./tcp.client 127.0.0.1 1990 4096
+  PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND                            
+ 9468 winlin    20   0 12008 1192  800 R 99.8  0.0   1:17.63 ./tcp.server 64 1990 4096          
+ 9487 winlin    20   0 12008 1192  800 R 80.3  0.0   1:02.49 ./tcp.client 127.0.0.1 1990 64 4096
 */
 #include <unistd.h>
 #include <stdio.h>
