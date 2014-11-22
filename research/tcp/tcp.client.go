@@ -1,5 +1,5 @@
 /**
-go build ./tcp.client.go && ./tcp.client 1 0 1990 4096
+go build ./tcp.client.go && ./tcp.client 1 0 127.0.0.1 1990 4096
 */
 package main
 import (
@@ -13,17 +13,19 @@ import (
 func main() {
     var (
         nb_cpus, no_delay, server_port, packet_bytes int
+        server_ip string
         err error
     )
     fmt.Println("tcp client to recv bytes from server")
-    if len(os.Args) <= 2 {
-        fmt.Println("Usage:", os.Args[0], "<cpus> <no_delay> <port> <packet_bytes>")
+    if len(os.Args) <= 5 {
+        fmt.Println("Usage:", os.Args[0], "<cpus> <no_delay> <ip> <port> <packet_bytes>")
         fmt.Println("   cpus: how many cpu to use.")
         fmt.Println("   no_delay: whether tcp no delay. go default 1, maybe performance hurt.")
+        fmt.Println("   ip: the ip to connect to.")
         fmt.Println("   port: the port to connect to.")
         fmt.Println("   packet_bytes: the bytes for packet to send.")
         fmt.Println("For example:")
-        fmt.Println("   ", os.Args[0], 1, 0, 1990, 4096)
+        fmt.Println("   ", os.Args[0], 1, 0, "127.0.0.1", 1990, 4096)
         return
     }
     
@@ -39,21 +41,24 @@ func main() {
     }
     fmt.Println("no_delay is", no_delay)
     
-    if server_port, err = strconv.Atoi(os.Args[3]); err != nil {
-        fmt.Println("invalid option port", os.Args[3], "and err is", err)
+    server_ip = os.Args[3]
+    fmt.Println("server_ip is", server_ip)
+    
+    if server_port, err = strconv.Atoi(os.Args[4]); err != nil {
+        fmt.Println("invalid option port", os.Args[4], "and err is", err)
         return
     }
     fmt.Println("server_port is", server_port)
     
-    if packet_bytes, err = strconv.Atoi(os.Args[4]); err != nil {
-        fmt.Println("invalid packet_bytes port", os.Args[4], "and err is", err)
+    if packet_bytes, err = strconv.Atoi(os.Args[5]); err != nil {
+        fmt.Println("invalid packet_bytes port", os.Args[5], "and err is", err)
         return
     }
     fmt.Println("packet_bytes is", packet_bytes)
     
     runtime.GOMAXPROCS(nb_cpus)
     
-    serverEP := fmt.Sprintf(":%d", server_port)
+    serverEP := fmt.Sprintf("%s:%d", server_ip, server_port)
     addr, err := net.ResolveTCPAddr("tcp4", serverEP)
     if err != nil {
         fmt.Println("resolve addr failed, err is", err)

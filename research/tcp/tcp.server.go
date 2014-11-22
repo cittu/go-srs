@@ -2,7 +2,7 @@
 ================================================================================================
 1. VirtualBox, Thinkpad, T430, 2CPU, 4096B/packet, S:GO, C:GO
 go build ./tcp.server.go && ./tcp.server 1 0 1990 4096
-go build ./tcp.client.go && ./tcp.client 1 0 1990 4096
+go build ./tcp.client.go && ./tcp.client 1 0 127.0.0.1 1990 4096
 
 ----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
 usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw 

@@ -1,5 +1,5 @@
 /**
-g++ tcp.client.cpp -g -O0 -o tcp.client && ./tcp.client 1990 4096 
+g++ tcp.client.cpp -g -O0 -o tcp.client && ./tcp.client 127.0.0.1 1990 4096 
 */
 #include <unistd.h>
 #include <stdio.h>
@@ -18,17 +18,20 @@ g++ tcp.client.cpp -g -O0 -o tcp.client && ./tcp.client 1990 4096
 int main(int argc, char** argv)
 {
     srs_trace("tcp client to recv bytes from server");
-    if (argc <= 2) {
-        srs_trace("Usage: %s <port> <packet_bytes>", argv[0]);
+    if (argc <= 3) {
+        srs_trace("Usage: %s <ip> <port> <packet_bytes>", argv[0]);
+        srs_trace("   ip: the ip to connect to.");
         srs_trace("   port: the port to connect to.");
         srs_trace("   packet_bytes: the bytes for packet to send.");
         srs_trace("For example:");
-        srs_trace("   %s %d %d", argv[0], 1990, 4096);
+        srs_trace("   %s %d %d", argv[0], "127.0.0.1", 1990, 4096);
         return -1;
     }
     
-    int server_port = ::atoi(argv[1]);
-    int packet_bytes = ::atoi(argv[2]);
+    const char* server_ip = argv[1];
+    int server_port = ::atoi(argv[2]);
+    int packet_bytes = ::atoi(argv[3]);
+    srs_trace("server_ip is %s", server_ip);
     srs_trace("server_port is %d", server_port);
     srs_trace("packet_bytes is %d", packet_bytes);
     
@@ -41,12 +44,12 @@ int main(int argc, char** argv)
     sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_port = htons(server_port);
-    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    addr.sin_addr.s_addr = inet_addr(server_ip);
     if (::connect(fd, (sockaddr*)&addr, sizeof(addr)) == -1) {
         srs_trace("connect server error.");
         return -1;
     }
-    srs_trace("connect server success. fd=%d", fd);
+    srs_trace("connect server %s:%d success. fd=%d", server_ip, server_port, fd);
     
     // get the sockoptions
     int sock_recv_buffer = 0;
