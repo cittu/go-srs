@@ -1,6 +1,6 @@
 /**
 ================================================================================================
-go build ./tcp.server.go && ./tcp.server 1 1 1990 4096
+go build ./tcp.server.go && ./tcp.server 1 1 1990 4096 0 0
 g++ tcp.client.cpp -g -O0 -o tcp.client && ./tcp.client 127.0.0.1 1990 4096 
 
 ----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
@@ -13,7 +13,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
  5517 winlin    20   0 11740  896  764 S 72.3  0.0   3:24.22 ./tcp.client 127.0.0.1 1990 4096 
  
 ================================================================================================
-go build ./tcp.server.go && ./tcp.server 1 0 1990 4096
+go build ./tcp.server.go && ./tcp.server 1 0 1990 4096 0 0
 g++ tcp.client.cpp -g -O0 -o tcp.client && ./tcp.client 127.0.0.1 1990 4096 
 
 ----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
@@ -26,7 +26,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
  3030 winlin    20   0 11740  900  764 R 81.0  0.0   1:59.42 ./tcp.client 127.0.0.1 1990 4096
  
 ================================================================================================
-go build ./tcp.server.go && ./tcp.server 10 1 1990 4096
+go build ./tcp.server.go && ./tcp.server 10 1 1990 4096 0 0
 g++ tcp.client.cpp -g -O0 -o tcp.client && for((i=0;i<8;i++)); do (./tcp.client 127.0.0.1 1990 4096 &); done
 
 ----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
@@ -46,7 +46,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
  6393 winlin    20   0 11740  900  764 R 61.4  0.0   1:11.90 ./tcp.client 127.0.0.1 1990 4096 
  
 ================================================================================================
-go build ./tcp.server.go && ./tcp.server 10 0 1990 4096
+go build ./tcp.server.go && ./tcp.server 10 0 1990 4096 0 0
 g++ tcp.client.cpp -g -O0 -o tcp.client && for((i=0;i<8;i++)); do (./tcp.client 127.0.0.1 1990 4096 &); done
 
 ----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
@@ -66,7 +66,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
  4177 winlin    20   0 11740  900  764 R 74.0  0.0   8:07.63 ./tcp.client 127.0.0.1 1990 4096
  
 ================================================================================================
-go build ./tcp.server.go && ./tcp.server 1 0 1990 4096
+go build ./tcp.server.go && ./tcp.server 1 0 1990 4096 0 0
 g++ tcp.client.readv.cpp -g -O0 -o tcp.client && ./tcp.client 127.0.0.1 1990 64 4096 
 
 ----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
@@ -79,7 +79,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
  9698 winlin    20   0 12008 1192  800 R 79.3  0.0   2:13.23 ./tcp.client 127.0.0.1 1990 64 4096
  
 ================================================================================================
-go build ./tcp.server.go && ./tcp.server 10 0 1990 4096
+go build ./tcp.server.go && ./tcp.server 10 0 1990 4096 0 0
 g++ tcp.client.readv.cpp -g -O0 -o tcp.client && for((i=0;i<8;i++)); do (./tcp.client 127.0.0.1 1990 64 4096 &); done
 
 ----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
@@ -108,7 +108,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
   0   6  92   0   0   1|   0  7782B| 930M  930M|   0     0 |2737    69k
  
   PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND                         
-17389 winlin    20   0  247m 2700 1540 S 100.1  0.0   3:23.69 ./tcp.server 1 0 1990 4096 1   
+17389 winlin    20   0  247m 2700 1540 S 100.1  0.0   3:23.69 ./tcp.server 1 0 1990 4096 1 1
 17422 winlin    20   0 11740  896  764 R 85.2  0.0   2:52.34 ./tcp.client 127.0.0.1 1990 4096
  
 [winlin@dell-demo tcp]$    go tool pprof tcp.server tcp.prof
@@ -128,10 +128,27 @@ Total: 21446 samples
 
 ================================================================================================
 go build ./tcp.server.go && ./tcp.server 10 0 1990 4096 1 8
-g++ tcp.client.cpp -g -O0 -o tcp.client && ./tcp.client 127.0.0.1 1990 4096 
+g++ tcp.client.readv.cpp -g -O0 -o tcp.client && for((i=0;i<8;i++)); do (./tcp.client 127.0.0.1 1990 64 4096 &); done
 
 ----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
 usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw 
+  5  42  41   0   0  12|   0   117k|6867M 6867M|   0     0 |  15k  738k
+  5  41  42   0   0  12|   0  5598B|6627M 6627M|   0     0 |  15k  750k
+
+[winlin@dell-demo tcp]$    go tool pprof tcp.server tcp.prof
+Welcome to pprof!  For help, type 'help'.
+(pprof) top
+Total: 72052 samples
+   63097  87.6%  87.6%    65102  90.4% syscall.Syscall
+     816   1.1%  88.7%     1244   1.7% runtime.deferreturn
+     801   1.1%  89.8%      801   1.1% sync/atomic.CompareAndSwapUint64
+     774   1.1%  90.9%    71371  99.1% net.(*netFD).Write
+     584   0.8%  91.7%      988   1.4% runtime.reentersyscall
+     412   0.6%  92.3%      790   1.1% net.(*pollDesc).Prepare
+     403   0.6%  92.8%     1256   1.7% net.(*fdMutex).RWUnlock
+     389   0.5%  93.4%      816   1.1% runtime.exitsyscall
+     371   0.5%  93.9%    71742  99.6% net.(*conn).Write
+     361   0.5%  94.4%    65701  91.2% syscall.Write
 */
 package main
 import (
