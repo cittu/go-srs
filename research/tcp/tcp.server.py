@@ -2,7 +2,7 @@
 ================================================================================================
 1. VirtualBox, Thinkpad, T430, 2CPU, 4096B/packet, S:Python, C:Python
 python tcp.server.py 1990 4096
-python tcp.client.py 1990 4096
+python tcp.client.py 127.0.0.1 1990 4096
 
 ----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
 usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw 
@@ -11,21 +11,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 
   PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND                                                                                                       
  5157 winlin    20   0  157m 5780 2808 R 100.0  0.3   0:34.11 python tcp.client.py 1990 4096                                                                                
- 5140 winlin    20   0  157m 5932 2824 S 28.2  0.3   0:09.84 python tcp.server.py 1990 4096 
-
-================================================================================================
-2. VirtualBox, Thinkpad, T430, 2CPU, 4096B/packet, S:Python, C:C++
-python tcp.server.py 1990 4096
-g++ tcp.client.cpp -g -O0 -o tcp.client && ./tcp.client 1990 4096 
-
-----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
-usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw 
- 11  17  44   3   0  26|   0   156k|1526M 1526M|   0     0 |2215    28k
- 11  16  47   0   0  25|   0     0 |1482M 1482M|   0     0 |2189    26k
-
-  PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND                                                                                                       
- 5140 winlin    20   0  157m 5932 2824 R 100.0  0.3   2:36.01 python tcp.server.py 1990 4096                                                                                
- 5331 winlin    20   0 11648  900  764 R 87.3  0.0   1:02.47 ./tcp.client 1990 4096        
+ 5140 winlin    20   0  157m 5932 2824 S 28.2  0.3   0:09.84 python tcp.server.py 1990 4096    
 '''
 import socket, sys
 if len(sys.argv) <= 2:

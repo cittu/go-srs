@@ -1,7 +1,7 @@
 /**
 ================================================================================================
-g++ tcp.server.cpp -g -O0 -o tcp.server && ./tcp.server 1990 4096 
-g++ tcp.client.cpp -g -O0 -o tcp.client && ./tcp.client 127.0.0.1 1990 4096 
+g++ tcp.server.writev.cpp -g -O0 -o tcp.server && ./tcp.server 64 1990 4096 
+g++ tcp.client.readv.cpp -g -O0 -o tcp.client && ./tcp.client 127.0.0.1 1990 64 4096 
 
 ----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
 usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw 
@@ -23,23 +23,27 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/uio.h>
 
 #define srs_trace(msg, ...)   printf(msg, ##__VA_ARGS__);printf("\n")
 
 int main(int argc, char** argv)
 {
     srs_trace("tcp server to send random data to clients.");
-    if (argc <= 2) {
-        srs_trace("Usage: %s <port> <packet_bytes>", argv[0]);
+    if (argc <= 3) {
+        srs_trace("Usage: %s <nb_writev> <port> <packet_bytes>", argv[0]);
+        srs_trace("   nb_writev: the number of iovec for writev.");
         srs_trace("   port: the listen port.");
         srs_trace("   packet_bytes: the bytes for packet to send.");
         srs_trace("For example:");
-        srs_trace("   %s %d %d", argv[0], 1990, 4096);
+        srs_trace("   %s %d %d", argv[0], 64, 1990, 4096);
         return -1;
     }
     
-    int listen_port = ::atoi(argv[1]);
-    int packet_bytes = ::atoi(argv[2]);
+    int nb_writev = ::atoi(argv[1]);
+    int listen_port = ::atoi(argv[2]);
+    int packet_bytes = ::atoi(argv[3]);
+    srs_trace("nb_writev is %d", nb_writev);
     srs_trace("listen_port is %d", listen_port);
     srs_trace("packet_bytes is %d", packet_bytes);
     
@@ -81,6 +85,13 @@ int main(int argc, char** argv)
     }
     srs_trace("SO_SNDBUF=%d", sock_send_buffer);
     
+    iovec* iov = new iovec[nb_writev];
+    for (int i = 0; i < nb_writev; i++) {
+        iovec& item = iov[i];
+        item.iov_base = new char[packet_bytes];
+        item.iov_len = packet_bytes;
+    }
+    
     for (;;) {
         int conn = accept(fd, NULL, NULL);
         if (conn < 0) {
@@ -89,10 +100,9 @@ int main(int argc, char** argv)
         }
         srs_trace("accept socket ok, conn=%d", conn);
         
-        char b[4096];
         for (;;) {
-            ssize_t nb_send = send(conn, b, sizeof(b), 0);
-            if (nb_send != sizeof(b)) {
+            ssize_t nb_send = writev(conn, iov, nb_writev);
+            if (nb_send != packet_bytes * nb_writev) {
                 srs_trace("send bytes to socket error.");
                 ::close(conn);
                 break;

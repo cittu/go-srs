@@ -1,17 +1,69 @@
 /**
 ================================================================================================
-1. VirtualBox, Thinkpad, T430, 2CPU, 4096B/packet, S:GO, C:GO
-go build ./tcp.server.go && ./tcp.server 1 0 1990 4096
-go build ./tcp.client.go && ./tcp.client 1 0 127.0.0.1 1990 4096
+go build ./tcp.server.go && ./tcp.server 1 1 1990 4096
+g++ tcp.client.cpp -g -O0 -o tcp.client && ./tcp.client 127.0.0.1 1990 4096 
 
 ----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
 usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw 
- 17  34  30   0   0  19|   0     0 | 657M  657M|   0     0 |6183    22k
- 16  32  31   0   0  20|   0     0 | 655M  655M|   0     0 |6205    22k
+  0   5  93   0   0   2|   0  7509B| 587M  587M|   0     0 |2544   141k
+  0   5  93   0   0   2|   0    10k| 524M  524M|   0     0 |2629   123k
  
-  PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND                                                                                                     
- 5467 winlin    20   0  115m 2156 1276 S 129.1  0.1   0:20.80 ./tcp.client 1990 4096                                                                                        
- 5415 winlin    20   0  180m 2356 1404 R 100.8  0.1   1:36.31 ./tcp.server 1990 4096 
+  PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND                          
+ 5496 winlin    20   0 98248 1968 1360 S 100.5  0.0   4:40.54 ./tcp.server 1 1 1990 4096      
+ 5517 winlin    20   0 11740  896  764 S 72.3  0.0   3:24.22 ./tcp.client 127.0.0.1 1990 4096 
+ 
+================================================================================================
+go build ./tcp.server.go && ./tcp.server 1 0 1990 4096
+g++ tcp.client.cpp -g -O0 -o tcp.client && ./tcp.client 127.0.0.1 1990 4096 
+
+----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
+usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw 
+  0   5  93   0   0   1|   0    10k| 868M  868M|   0     0 |2674    79k
+  1   5  93   0   0   1|   0    16k| 957M  957M|   0     0 |2660    85k
+ 
+  PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND                         
+ 3004 winlin    20   0 98248 1968 1360 R 100.2  0.0   2:27.32 ./tcp.server 1 0 1990 4096     
+ 3030 winlin    20   0 11740  900  764 R 81.0  0.0   1:59.42 ./tcp.client 127.0.0.1 1990 4096
+ 
+================================================================================================
+go build ./tcp.server.go && ./tcp.server 10 1 1990 4096
+g++ tcp.client.cpp -g -O0 -o tcp.client && for((i=0;i<8;i++)); do (./tcp.client 127.0.0.1 1990 4096 &); done
+
+----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
+usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw 
+  4  37  47   0   0  12|   0   105k|3972M 3972M|   0     0 |  14k  995k
+  4  37  46   0   0  13|   0  8055B|3761M 3761M|   0     0 |  14k  949k
+
+  PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND                          
+ 6353 winlin    20   0  517m 6896 1372 R 789.6  0.0  13:24.49 ./tcp.server 10 1 1990 4096     
+ 6384 winlin    20   0 11740  900  764 S 68.4  0.0   1:11.57 ./tcp.client 127.0.0.1 1990 4096 
+ 6386 winlin    20   0 11740  896  764 R 67.4  0.0   1:09.53 ./tcp.client 127.0.0.1 1990 4096 
+ 6390 winlin    20   0 11740  900  764 R 66.7  0.0   1:11.24 ./tcp.client 127.0.0.1 1990 4096 
+ 6382 winlin    20   0 11740  896  764 R 64.8  0.0   1:11.30 ./tcp.client 127.0.0.1 1990 4096 
+ 6388 winlin    20   0 11740  896  764 R 64.4  0.0   1:11.80 ./tcp.client 127.0.0.1 1990 4096 
+ 6380 winlin    20   0 11740  896  764 S 63.4  0.0   1:08.78 ./tcp.client 127.0.0.1 1990 4096 
+ 6396 winlin    20   0 11740  896  764 R 62.8  0.0   1:09.47 ./tcp.client 127.0.0.1 1990 4096 
+ 6393 winlin    20   0 11740  900  764 R 61.4  0.0   1:11.90 ./tcp.client 127.0.0.1 1990 4096 
+ 
+================================================================================================
+go build ./tcp.server.go && ./tcp.server 10 0 1990 4096
+g++ tcp.client.cpp -g -O0 -o tcp.client && for((i=0;i<8;i++)); do (./tcp.client 127.0.0.1 1990 4096 &); done
+
+----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
+usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw 
+  5  42  41   0   0  12|   0  8602B|7132M 7132M|   0     0 |  15k  602k
+  5  41  41   0   0  12|   0    13k|7426M 7426M|   0     0 |  15k  651k
+
+  PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND                         
+ 4148 winlin    20   0  528m 9.8m 1376 R 795.5  0.1  81:48.12 ./tcp.server 10 0 1990 4096    
+ 4167 winlin    20   0 11740  896  764 S 89.8  0.0   8:16.52 ./tcp.client 127.0.0.1 1990 4096
+ 4161 winlin    20   0 11740  900  764 R 87.8  0.0   8:14.63 ./tcp.client 127.0.0.1 1990 4096
+ 4174 winlin    20   0 11740  896  764 S 83.2  0.0   8:09.40 ./tcp.client 127.0.0.1 1990 4096
+ 4163 winlin    20   0 11740  896  764 R 82.6  0.0   8:07.80 ./tcp.client 127.0.0.1 1990 4096
+ 4171 winlin    20   0 11740  900  764 R 82.2  0.0   8:08.75 ./tcp.client 127.0.0.1 1990 4096
+ 4169 winlin    20   0 11740  900  764 S 81.9  0.0   8:15.37 ./tcp.client 127.0.0.1 1990 4096
+ 4165 winlin    20   0 11740  900  764 R 78.9  0.0   8:09.98 ./tcp.client 127.0.0.1 1990 4096
+ 4177 winlin    20   0 11740  900  764 R 74.0  0.0   8:07.63 ./tcp.client 127.0.0.1 1990 4096
 */
 package main
 import (
