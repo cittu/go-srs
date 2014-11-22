@@ -99,24 +99,39 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 10265 winlin    20   0 12008 1192  800 R 74.6  0.0   5:03.35 ./tcp.client 127.0.0.1 1990 64 4096
 
 ================================================================================================
-go build ./tcp.server.go && ./tcp.server 1 0 1990 4096 1
+go build ./tcp.server.go && ./tcp.server 1 0 1990 4096 1 1
 g++ tcp.client.cpp -g -O0 -o tcp.client && ./tcp.client 127.0.0.1 1990 4096 
 
 ----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
 usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw 
-  0   5  93   0   0   1|   0    10k| 868M  868M|   0     0 |2674    79k
-  1   5  93   0   0   1|   0    16k| 957M  957M|   0     0 |2660    85k
+  0   6  92   0   0   1|   0  8329B| 974M  974M|   0     0 |2734    72k
+  0   6  92   0   0   1|   0  7782B| 930M  930M|   0     0 |2737    69k
  
   PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND                         
- 3004 winlin    20   0 98248 1968 1360 R 100.2  0.0   2:27.32 ./tcp.server 1 0 1990 4096     
- 3030 winlin    20   0 11740  900  764 R 81.0  0.0   1:59.42 ./tcp.client 127.0.0.1 1990 4096
+17389 winlin    20   0  247m 2700 1540 S 100.1  0.0   3:23.69 ./tcp.server 1 0 1990 4096 1   
+17422 winlin    20   0 11740  896  764 R 85.2  0.0   2:52.34 ./tcp.client 127.0.0.1 1990 4096
  
-[winlin@dev6 tcp]$    go tool pprof tcp.server tcp.prof
+[winlin@dell-demo tcp]$    go tool pprof tcp.server tcp.prof
+Welcome to pprof!  For help, type 'help'.
 (pprof) top
- Total: 5539 samples
-    5245  94.7%  94.7%     5301  95.7% syscall.Syscall
-      34   0.6%  95.3%     5491  99.1% net.(*netFD).Write
-      19   0.3%  95.6%     5510  99.5% net.(*conn).Write
+Total: 21446 samples
+   19715  91.9%  91.9%    20124  93.8% syscall.Syscall
+     165   0.8%  92.7%    21246  99.1% net.(*netFD).Write
+     123   0.6%  93.3%      203   0.9% runtime.deferreturn
+     106   0.5%  93.8%    21435  99.9% main.handleConnection
+     106   0.5%  94.3%      106   0.5% sync/atomic.CompareAndSwapUint64
+     103   0.5%  94.7%      162   0.8% net.(*fdMutex).RWLock
+     100   0.5%  95.2%      211   1.0% runtime.exitsyscall
+      95   0.4%  95.6%      178   0.8% net.(*fdMutex).RWUnlock
+      83   0.4%  96.0%    21329  99.5% net.(*conn).Write
+      82   0.4%  96.4%      155   0.7% runtime.reentersyscall
+
+================================================================================================
+go build ./tcp.server.go && ./tcp.server 10 0 1990 4096 1 8
+g++ tcp.client.cpp -g -O0 -o tcp.client && ./tcp.client 127.0.0.1 1990 4096 
+
+----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
+usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw 
 */
 package main
 import (
@@ -130,20 +145,21 @@ import (
 
 func main() {
     var (
-        nb_cpus, no_delay, listen_port, packet_bytes, do_pprof int
+        nb_cpus, no_delay, listen_port, packet_bytes, do_pprof, qwsnbc int
         err error
     )
     
     fmt.Println("tcp server to send random data to clients.")
-    if len(os.Args) <= 5 {
-        fmt.Println("Usage:", os.Args[0], "<cpus> <no_delay> <port> <packet_bytes> <pprof>")
+    if len(os.Args) <= 6 {
+        fmt.Println("Usage:", os.Args[0], "<cpus> <no_delay> <port> <packet_bytes> <pprof> <qwsnbc>")
         fmt.Println("   cpus: how many cpu to use.")
         fmt.Println("   no_delay: whether tcp no delay. go default 1, maybe performance hurt.")
         fmt.Println("   port: the listen port.")
         fmt.Println("   packet_bytes: the bytes for packet to send.")
         fmt.Println("   pprof: whether do pprof test. write to tcp.prof.")
+        fmt.Println("   qwsnbc: quit when served number of clients, for pprof.")
         fmt.Println("For example:")
-        fmt.Println("   ", os.Args[0], 1, 0, 1990, 4096, 0)
+        fmt.Println("   ", os.Args[0], 1, 0, 1990, 4096, 0, 0)
         fmt.Println("For pprof:")
         fmt.Println("   go tool pprof tcp.server tcp.prof")
         return
@@ -179,6 +195,12 @@ func main() {
     }
     fmt.Println("do_pprof is", do_pprof)
     
+    if qwsnbc, err = strconv.Atoi(os.Args[6]); err != nil {
+        fmt.Println("invalid qwsnbc port", os.Args[6], "and err is", err)
+        return
+    }
+    fmt.Println("qwsnbc is", qwsnbc)
+    
     if do_pprof != 0 {
         f, err := os.Create("tcp.prof")
         if err != nil {
@@ -213,7 +235,7 @@ func main() {
             continue
         }
         
-        if do_pprof != 0 && nbClients > 1 {
+        if do_pprof != 0 && nbClients > qwsnbc {
             fmt.Println("quit for pprof");
             fmt.Println("For pprof:")
             fmt.Println("   go tool pprof tcp.server tcp.prof")
