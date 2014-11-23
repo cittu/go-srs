@@ -11,6 +11,13 @@ To clone from github, build, install to $GOPATH and start srs:
 go get github.com/winlinvip/srs.go/srs && $GOPATH/bin/srs
 ```
 
+Or, for windows:
+
+```
+go get github.com/winlinvip/srs.go/srs && %GOPATH%\bin\srs.exe
+```
+
+
 About how to set $GOPATH, read [prepare go](http://blog.csdn.net/win_lin/article/details/40618671).
 
 ## IDE
