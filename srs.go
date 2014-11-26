@@ -38,6 +38,5 @@ func main() {
 		return "Hello World!"
 	})
 	m.Run()
-	fmt.Println("Hello, SRS!")
 }
 
