@@ -26,7 +26,7 @@ package main
 import (
 	"fmt"
 	"github.com/go-martini/martini"
-	"github.com/winlinvip/srs.go/core"
+	"github.com/winlinvip/go-srs/core"
 )
 
 func main() {

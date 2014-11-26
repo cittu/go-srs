@@ -1,4 +1,4 @@
-srs.go
+go-srs
 ======
 
 golang for https://github.com/winlinvip/simple-rtmp-server
@@ -8,13 +8,13 @@ golang for https://github.com/winlinvip/simple-rtmp-server
 To clone from github, build, install to $GOPATH and start srs:
 
 ```
-go get github.com/winlinvip/srs.go/srs && $GOPATH/bin/srs
+go get github.com/winlinvip/go-srs && $GOPATH/bin/go-srs
 ```
 
 Or, for windows:
 
 ```
-go get github.com/winlinvip/srs.go/srs && %GOPATH%\bin\srs.exe
+go get github.com/winlinvip/go-srs && %GOPATH%\bin\go-srs.exe
 ```
 
 
