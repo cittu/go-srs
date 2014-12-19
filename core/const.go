@@ -27,5 +27,12 @@ const (
 	Major = 3
 	Minor = 0
 	Revision = 0
+
+	Copyright = "Copyright (c) 2013-2014"
+	SrsSignature = "SRS(Simple RTMP Server)"
+	SrsUrl = "SRS(http://github.com/winlinvip/simple-rtmp-server)"
+
+	Cpus = 4
+	ListenApi = 1986
 )
 

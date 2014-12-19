@@ -24,19 +24,42 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 package main
 
 import (
+	"io"
 	"fmt"
-	"github.com/go-martini/martini"
+	"net/http"
 	"github.com/winlinvip/go-srs/core"
+	"encoding/json"
+	"runtime"
 )
 
 func main() {
-	fmt.Println("golang for http://github.com/winlinvip/simple-rtmp-server")
-	fmt.Println("SRS(Simple RTMP Server)", fmt.Sprintf("%d.%d.%d", core.Major, core.Minor, core.Revision), "Copyright (c) 2013-2014")
+	fmt.Println("The golang for", core.SrsUrl)
+	fmt.Println(core.SrsSignature, fmt.Sprintf("%d.%d.%d", core.Major, core.Minor, core.Revision), core.Copyright)
 
-	m := martini.Classic()
-	m.Get("/api/v3/version", func() string {
-		return "Hello World!"
+	fmt.Println("Use", core.Cpus, "cpus for multiple processes")
+	runtime.GOMAXPROCS(core.Cpus)
+
+	http.HandleFunc("/api/v3/version", func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Server", fmt.Sprintf("SRS/%d.%d.%d", core.Major, core.Minor, core.Revision))
+		w.Header().Set("Content-Type", "application/json")
+
+		data, err := json.Marshal(map[string]interface {}{
+			"code": 0,
+			"major": core.Major,
+			"minor": core.Minor,
+			"revision": core.Revision,
+		})
+		if err != nil {
+			fmt.Println("marshal json failed, err is", err)
+			return
+		}
+
+		io.WriteString(w, string(data))
 	})
-	m.Run()
+	fmt.Println(fmt.Sprintf("Api listen at %d, url is http://127.0.0.1:%d/api/v3/version", core.ListenApi, core.ListenApi))
+	if err := http.ListenAndServe(fmt.Sprintf(":%d", core.ListenApi), nil); err != nil {
+		fmt.Println("Serve HTTP failed, err is", err)
+		return
+	}
 }
 
