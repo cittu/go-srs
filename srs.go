@@ -27,9 +27,9 @@ import (
 	"io"
 	"fmt"
 	"net/http"
-	"github.com/winlinvip/go-srs/core"
 	"encoding/json"
 	"runtime"
+	"github.com/winlinvip/go-srs/core"
 )
 
 func main() {
