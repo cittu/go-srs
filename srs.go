@@ -30,17 +30,27 @@ import (
 	"encoding/json"
 	"runtime"
 	"github.com/winlinvip/go-srs/core"
+	"github.com/winlinvip/go-srs/rtmp"
 )
 
 func main() {
 	fmt.Println("The golang for", core.SrsUrl)
-	fmt.Println(core.SrsSignature, fmt.Sprintf("%d.%d.%d", core.Major, core.Minor, core.Revision), core.Copyright)
+	fmt.Println(core.SrsSignature, fmt.Sprintf("%d.%d.%d",
+		core.Major, core.Minor, core.Revision), core.Copyright)
 
 	fmt.Println("Use", core.Cpus, "cpus for multiple processes")
 	runtime.GOMAXPROCS(core.Cpus)
 
+	go func(){
+		if err := rtmp.ListenAndServe(""); err != nil {
+			fmt.Println("Serve RTMP failed, err is", err)
+			return
+		}
+	}()
+
 	http.HandleFunc("/api/v3/version", func(w http.ResponseWriter, req *http.Request) {
-		w.Header().Set("Server", fmt.Sprintf("SRS/%d.%d.%d", core.Major, core.Minor, core.Revision))
+		w.Header().Set("Server", fmt.Sprintf("SRS/%d.%d.%d",
+			core.Major, core.Minor, core.Revision))
 		w.Header().Set("Content-Type", "application/json")
 
 		data, err := json.Marshal(map[string]interface {}{
@@ -56,7 +66,9 @@ func main() {
 
 		io.WriteString(w, string(data))
 	})
-	fmt.Println(fmt.Sprintf("Api listen at %d, url is http://127.0.0.1:%d/api/v3/version", core.ListenApi, core.ListenApi))
+
+	fmt.Println(fmt.Sprintf("Api listen at %d, url is http://127.0.0.1:%d/api/v3/version",
+		core.ListenApi, core.ListenApi))
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", core.ListenApi), nil); err != nil {
 		fmt.Println("Serve HTTP failed, err is", err)
 		return
