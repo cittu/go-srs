@@ -41,8 +41,9 @@ func main() {
 	fmt.Println("Use", core.Cpus, "cpus for multiple processes")
 	runtime.GOMAXPROCS(core.Cpus)
 
+	fmt.Println("Rtmp listen at", core.ListenRtmp)
 	go func(){
-		if err := rtmp.ListenAndServe(""); err != nil {
+		if err := rtmp.ListenAndServe(fmt.Sprintf(":%d", core.ListenRtmp)); err != nil {
 			fmt.Println("Serve RTMP failed, err is", err)
 			return
 		}
@@ -67,8 +68,8 @@ func main() {
 		io.WriteString(w, string(data))
 	})
 
-	fmt.Println(fmt.Sprintf("Api listen at %d, url is http://127.0.0.1:%d/api/v3/version",
-		core.ListenApi, core.ListenApi))
+	url := fmt.Sprintf("http://127.0.0.1:%d/api/v3/version", core.ListenApi)
+	fmt.Println("Api listen at ", core.ListenApi, "and url is", url)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", core.ListenApi), nil); err != nil {
 		fmt.Println("Serve HTTP failed, err is", err)
 		return

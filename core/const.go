@@ -30,5 +30,6 @@ const (
 
 	Cpus = 4
 	ListenApi = 1986
+	ListenRtmp = 1935
 )
 

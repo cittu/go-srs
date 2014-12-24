@@ -25,36 +25,18 @@ package rtmp
 
 import "net"
 
-type Server struct {
-	Addr string
+type Conn struct {
+	svr *Server
+	conn *net.TCPConn
 }
 
-func (svr *Server) ListenAndServe() error {
-	addr := svr.Addr
-	if len(addr) == 0 {
-		addr = ":1935"
-	}
-
-	ln, err := net.Listen("tcp", addr)
-	if err  != nil {
-		return err
-	}
-
-	return svr.Serve(ln)
+func (c *Conn) Serve() {
+	defer c.conn.Close()
 }
 
-func (svr *Server) Serve(l net.Listener) error {
-	defer l.Close()
-	for {
-		rw, err := l.Accept()
-		if err != nil {
-			if ne, ok := err.(net.Error); ok && ne.Temporary() {
-				continue
-			}
-			return err
-		}
-
-		c := NewConn(svr, rw.(*net.TCPConn))
-		go c.Serve()
+func NewConn(svr *Server, conn *net.TCPConn) *Conn {
+	return &Conn{
+		svr: svr,
+		conn: conn,
 	}
 }
