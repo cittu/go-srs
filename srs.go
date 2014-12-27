@@ -31,6 +31,7 @@ import (
 	"runtime"
 	"github.com/winlinvip/go-srs/core"
 	"github.com/winlinvip/go-srs/rtmp"
+	"github.com/winlinvip/go-srs/server"
 )
 
 func main() {
@@ -38,13 +39,16 @@ func main() {
 	fmt.Println(core.SrsSignature, fmt.Sprintf("%d.%d.%d",
 		core.Major, core.Minor, core.Revision), core.Copyright)
 
-	fmt.Println("Use", core.Cpus, "cpus for multiple processes")
+	// TODO: FIXME: read and parse the config file.
+
+	ctx := server.NewDefaultContext()
+	ctx.Log().Trace("Use %d cpus for multiple processes", core.Cpus)
 	runtime.GOMAXPROCS(core.Cpus)
 
-	fmt.Println("Rtmp listen at", core.ListenRtmp)
+	ctx.Log().Trace("Rtmp listen at %v", core.ListenRtmp)
 	go func(){
 		if err := rtmp.ListenAndServe(fmt.Sprintf(":%d", core.ListenRtmp)); err != nil {
-			fmt.Println("Serve RTMP failed, err is", err)
+			ctx.Log().Error("Serve RTMP failed, err is %v", err)
 			return
 		}
 	}()
@@ -61,7 +65,7 @@ func main() {
 			"revision": core.Revision,
 		})
 		if err != nil {
-			fmt.Println("marshal json failed, err is", err)
+			ctx.Log().Error("marshal json failed, err is %v", err)
 			return
 		}
 
@@ -69,9 +73,9 @@ func main() {
 	})
 
 	url := fmt.Sprintf("http://127.0.0.1:%d/api/v3/version", core.ListenApi)
-	fmt.Println("Api listen at ", core.ListenApi, "and url is", url)
+	ctx.Log().Trace("Api listen at %v, url is %v", core.ListenApi, url)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", core.ListenApi), nil); err != nil {
-		fmt.Println("Serve HTTP failed, err is", err)
+		ctx.Log().Error("Serve HTTP failed, err is %v", err)
 		return
 	}
 }
