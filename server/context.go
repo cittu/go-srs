@@ -28,6 +28,7 @@ import (
 )
 
 type Context struct {
+    Id int
     Logger core.Logger
 }
 

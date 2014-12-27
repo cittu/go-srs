@@ -31,6 +31,12 @@ import (
     "github.com/winlinvip/go-srs/core"
 )
 
+var goroutineIdSeed int = 99
+func goroutineId() int {
+    goroutineIdSeed += 1
+    return goroutineIdSeed
+}
+
 func NewLog(out io.Writer, prefix string, flag int) core.Logger {
     v := &Logger{}
     v.Flag = flag
@@ -40,8 +46,9 @@ func NewLog(out io.Writer, prefix string, flag int) core.Logger {
 
 func NewDefaultContext() core.Context {
     v := &Context{}
+    v.Id = goroutineId()
     // TODO: FIXME: apply config file.
-    v.Logger = NewLog(os.Stdout, fmt.Sprintf("[srs][%d] ", os.Getpid()),
+    v.Logger = NewLog(os.Stdout, fmt.Sprintf("[srs][%d][%d] ", os.Getpid(), v.Id),
         log.Ldate | log.Ltime | core.Ltrace | core.Lwarn | core.Lerror)
     return v
 }
