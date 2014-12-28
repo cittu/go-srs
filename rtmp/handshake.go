@@ -95,7 +95,5 @@ func (hs *SimpleHandshake) WithClient(conn *Conn) error {
     }
     conn.Logger.Info("read c2 ok")
 
-    conn.Logger.Trace("simple handshake ok")
-
     return nil
 }

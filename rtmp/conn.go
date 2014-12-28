@@ -28,6 +28,7 @@ import (
 	"github.com/winlinvip/go-srs/core"
 	"math/rand"
 	"time"
+	"runtime"
 )
 
 type Conn struct {
@@ -38,7 +39,16 @@ type Conn struct {
 }
 
 func (conn *Conn) Serve() {
-	defer conn.IoRw.Close()
+	defer func(){
+		// any error for each connection must be recover
+		if err := recover(); err != nil {
+			const size = 64 << 10
+			buf := make([]byte, size)
+			buf = buf[:runtime.Stack(buf, false)]
+			conn.Logger.Error("rtmp: panic serving %v\n%v\n%s", conn.IoRw.RemoteAddr(), err, buf)
+		}
+		conn.IoRw.Close()
+	}()
 	conn.Logger.Trace("serve client ip=%v", conn.IoRw.RemoteAddr().String())
 
 	if err := conn.IoRw.SetNoDelay(false); err != nil {
@@ -52,6 +62,7 @@ func (conn *Conn) Serve() {
 		conn.Logger.Error("handshake failed, err is %v", err)
 		return
 	}
+	conn.Logger.Trace("simple handshake with client ok")
 }
 
 func NewConn(svr *Server, conn *net.TCPConn) *Conn {
