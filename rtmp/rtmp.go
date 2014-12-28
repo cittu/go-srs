@@ -23,7 +23,20 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 package rtmp
 
-import "github.com/winlinvip/go-srs/core"
+import (
+	"github.com/winlinvip/go-srs/core"
+	"net"
+)
+
+type Protocol struct {
+	IoRw *net.TCPConn
+	Logger core.Logger
+	Channel chan *RtmpMessage
+}
+
+func (proto *Protocol) PumpMessage() error {
+	return nil
+}
 
 // the rtmp protocol level message packet
 type RtmpMessage struct {

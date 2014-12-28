@@ -36,6 +36,9 @@ type Conn struct {
 	IoRw *net.TCPConn
 	Logger core.Logger
 	Rand *rand.Rand // the random to generate the handshake bytes.
+	InChannel chan *RtmpMessage // the incoming messages channel
+	OutChannel chan *RtmpMessage // the outgoing messages channel
+	Protocol *Protocol // the protocol stack.
 }
 
 func (conn *Conn) Serve() {
@@ -64,28 +67,82 @@ func (conn *Conn) Serve() {
 	}
 	conn.Logger.Trace("simple handshake with client ok")
 
-	// TODO: FIXME: channel with buffer
-	inChannel := make(chan *RtmpMessage)
-	outChannel := make(chan *RtmpMessage)
+	// pump message goroutine
+	go conn.PumpMessage()
+
+	// rtmp msg loop
+	if err := conn.MessageCycle(); err != nil {
+		conn.Logger.Error("message cycle failed, err is %v", err)
+		return
+	}
+	conn.Logger.Trace("serve conn ok")
+}
+
+func (conn *Conn) MessageCycle() error {
 	for {
 		select {
-		// when incoming message, process it.
-		case msg := <- inChannel:
+			// when incoming message, process it.
+		case msg,ok := <- conn.InChannel:
+			if !ok {
+				return nil
+			}
 			conn.Logger.Info("received msg %v", msg)
+			// TODO: FIXME: to process the msg.
 			continue
-		// when got msg to send, send it immeidately.
-		case msg := <- outChannel:
+			// when got msg to send, send it immeidately.
+		case msg,ok := <- conn.OutChannel:
+			if !ok {
+				return nil
+			}
 			conn.Logger.Info("send msg %v", msg)
+			// TODO: FIXME: to sendout the msg.
 			continue
 		}
 	}
 }
 
+func (conn *Conn) PumpMessage() {
+	defer func(){
+		// any error for each connection msg pump must be recover
+		if err := recover(); err != nil {
+			const size = 64 << 10
+			buf := make([]byte, size)
+			buf = buf[:runtime.Stack(buf, false)]
+			conn.Logger.Error("rtmp: panic pump message %v\n%v\n%s", conn.IoRw.RemoteAddr(), err, buf)
+		}
+
+		conn.Logger.Info("close the incoming channel")
+		close(conn.InChannel)
+
+		conn.Logger.Trace("stop pump rtmp messages")
+	}()
+	conn.Logger.Trace("start pump rtmp messages")
+
+	for {
+		if err := conn.Protocol.PumpMessage(); err != nil {
+			conn.Logger.Error("pump message failed, err is %v", err)
+			panic(err)
+		}
+	}
+}
+
 func NewConn(svr *Server, conn *net.TCPConn) *Conn {
-	return &Conn{
+	v := &Conn{
 		Server: svr,
 		IoRw: conn,
 		Logger: svr.Factory.CreateLogger("conn"),
 		Rand: rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
+
+	// TODO: FIXME: channel with buffer
+	v.InChannel = make(chan *RtmpMessage)
+	v.OutChannel = make(chan *RtmpMessage)
+
+	v.Protocol = &Protocol{
+		IoRw: conn,
+		Logger: v.Logger,
+		Channel: v.InChannel,
+	}
+
+	return v
 }
