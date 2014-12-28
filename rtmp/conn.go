@@ -63,6 +63,22 @@ func (conn *Conn) Serve() {
 		return
 	}
 	conn.Logger.Trace("simple handshake with client ok")
+
+	// TODO: FIXME: channel with buffer
+	inChannel := make(chan *RtmpMessage)
+	outChannel := make(chan *RtmpMessage)
+	for {
+		select {
+		// when incoming message, process it.
+		case msg := <- inChannel:
+			conn.Logger.Info("received msg %v", msg)
+			continue
+		// when got msg to send, send it immeidately.
+		case msg := <- outChannel:
+			conn.Logger.Info("send msg %v", msg)
+			continue
+		}
+	}
 }
 
 func NewConn(svr *Server, conn *net.TCPConn) *Conn {

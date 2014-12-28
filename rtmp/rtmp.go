@@ -25,6 +25,14 @@ package rtmp
 
 import "github.com/winlinvip/go-srs/core"
 
+// the rtmp protocol level message packet
+type RtmpMessage struct {
+}
+
+func (msg *RtmpMessage) String() string {
+	return ""
+}
+
 func ListenAndServe(addr string, factory core.Factory) error {
 	server := &Server{Addr: addr, Factory: factory}
 	server.Logger = factory.CreateLogger("server")
