@@ -23,8 +23,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 package rtmp
 
-func ListenAndServe(addr string) error {
-	server := &Server{Addr: addr}
+import "github.com/winlinvip/go-srs/core"
+
+func ListenAndServe(addr string, factory core.Factory) error {
+	server := &Server{Addr: addr, Factory: factory}
+	server.Context = factory.CreateContext("server")
 	return server.ListenAndServe()
 }
 

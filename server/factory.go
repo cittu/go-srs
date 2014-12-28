@@ -24,10 +24,34 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 package server
 
 import (
+    "os"
+    "fmt"
+    "log"
+    "io"
     "github.com/winlinvip/go-srs/core"
 )
 
-func NewFactory() core.Factory {
-    f := &Factory{}
-    return f
+var goroutineIdSeed int = 99
+func goroutineId() int {
+    goroutineIdSeed += 1
+    return goroutineIdSeed
+}
+
+type Factory struct {
+}
+
+func NewLog(out io.Writer, prefix string, flag int) core.Logger {
+    v := &Logger{}
+    v.Flag = flag
+    v.Logger = log.New(out, prefix, flag)
+    return v
+}
+
+func (f *Factory) CreateContext(name string) core.Context {
+    v := &Context{}
+    v.Id = goroutineId()
+    // TODO: FIXME: apply config file.
+    v.Logger = NewLog(os.Stdout, fmt.Sprintf("[%s][%d][%d] ", name, os.Getpid(), v.Id),
+                        log.Ldate | log.Ltime | core.Ltrace | core.Lwarn | core.Lerror)
+    return v
 }

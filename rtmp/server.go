@@ -23,10 +23,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 package rtmp
 
-import "net"
+import (
+	"net"
+	"github.com/winlinvip/go-srs/core"
+)
 
 type Server struct {
 	Addr string
+	Factory core.Factory
+	Context core.Context
 }
 
 func (svr *Server) ListenAndServe() error {
@@ -34,11 +39,13 @@ func (svr *Server) ListenAndServe() error {
 	if len(addr) == 0 {
 		addr = ":1935"
 	}
+	svr.Context.Log().Trace("server addr is %v", addr)
 
 	ln, err := net.Listen("tcp", addr)
 	if err  != nil {
 		return err
 	}
+	svr.Context.Log().Trace("listen at %v ok", addr)
 
 	return svr.Serve(ln)
 }
@@ -54,7 +61,7 @@ func (svr *Server) Serve(l net.Listener) error {
 			return err
 		}
 
-		c := NewConn(svr, rw.(*net.TCPConn))
+		c := NewConn(svr, rw.(*net.TCPConn), svr.Factory)
 		go c.Serve()
 	}
 }

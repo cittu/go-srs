@@ -41,13 +41,16 @@ func main() {
 
 	// TODO: FIXME: read and parse the config file.
 
-	ctx := server.NewDefaultContext()
+	// the factory to create objects.
+	factory := server.NewFactory()
+
+	ctx := factory.CreateContext("srs")
 	ctx.Log().Trace("Use %d cpus for multiple processes", core.Cpus)
 	runtime.GOMAXPROCS(core.Cpus)
 
 	ctx.Log().Trace("Rtmp listen at %v", core.ListenRtmp)
 	go func(){
-		if err := rtmp.ListenAndServe(fmt.Sprintf(":%d", core.ListenRtmp)); err != nil {
+		if err := rtmp.ListenAndServe(fmt.Sprintf(":%d", core.ListenRtmp), factory); err != nil {
 			ctx.Log().Error("Serve RTMP failed, err is %v", err)
 			return
 		}

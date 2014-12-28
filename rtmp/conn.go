@@ -23,20 +23,27 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 package rtmp
 
-import "net"
+import (
+	"net"
+	"github.com/winlinvip/go-srs/core"
+)
 
 type Conn struct {
-	svr *Server
-	conn *net.TCPConn
+	Server *Server
+	Connection *net.TCPConn
+	Context core.Context
 }
 
 func (c *Conn) Serve() {
-	defer c.conn.Close()
+	defer c.Connection.Close()
+
+	c.Context.Log().Trace("serve client ip=%v", c.Connection.RemoteAddr().String())
 }
 
-func NewConn(svr *Server, conn *net.TCPConn) *Conn {
+func NewConn(svr *Server, conn *net.TCPConn, factory core.Factory) *Conn {
 	return &Conn{
-		svr: svr,
-		conn: conn,
+		Server: svr,
+		Connection: conn,
+		Context: factory.CreateContext("conn"),
 	}
 }
