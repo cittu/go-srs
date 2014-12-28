@@ -121,7 +121,7 @@ func (conn *Conn) PumpMessage() {
 	for {
 		if err := conn.Protocol.PumpMessage(); err != nil {
 			conn.Logger.Error("pump message failed, err is %v", err)
-			panic(err)
+			return
 		}
 	}
 }
@@ -138,11 +138,8 @@ func NewConn(svr *Server, conn *net.TCPConn) *Conn {
 	v.InChannel = make(chan *RtmpMessage)
 	v.OutChannel = make(chan *RtmpMessage)
 
-	v.Protocol = &Protocol{
-		IoRw: conn,
-		Logger: v.Logger,
-		Channel: v.InChannel,
-	}
+	// initialize the protocol stack.
+	v.Protocol = NewProtocol(conn, v.Logger, v.InChannel)
 
 	return v
 }
