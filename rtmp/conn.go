@@ -119,10 +119,19 @@ func (conn *Conn) PumpMessage() {
 	conn.Logger.Trace("start pump rtmp messages")
 
 	for {
-		if err := conn.Protocol.PumpMessage(); err != nil {
+		var msg *RtmpMessage
+		var err error
+		if msg,err = conn.Protocol.PumpMessage(); err != nil {
 			conn.Logger.Error("pump message failed, err is %v", err)
 			return
 		}
+
+		if msg == nil {
+			continue
+		}
+
+		conn.Logger.Info("incoming msg")
+		conn.InChannel <- msg
 	}
 }
 
@@ -139,7 +148,7 @@ func NewConn(svr *Server, conn *net.TCPConn) *Conn {
 	v.OutChannel = make(chan *RtmpMessage)
 
 	// initialize the protocol stack.
-	v.Protocol = NewProtocol(conn, v.Logger, v.InChannel)
+	v.Protocol = NewProtocol(conn, v.Logger)
 
 	return v
 }

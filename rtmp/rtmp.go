@@ -31,6 +31,7 @@ import (
 	"fmt"
 	"errors"
 	"bytes"
+	"math"
 )
 
 const (
@@ -50,32 +51,33 @@ const (
 )
 const (
 	RTMP_EXTENDED_TIMESTAMP = 0xFFFFFF
+	SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE = 128
 )
 
 // the rtmp message header map to fmt.
 var mhSizes = []byte{11, 7, 3, 0}
 
-type Protocol struct {
-	IoRw *net.TCPConn
-	Logger core.Logger
-	Channel chan *RtmpMessage
-	ChunkStreams map[int]*ChunkStream
-}
-
 var RtmpChunkStart = errors.New("new chunk stream cid must be fresh")
 var RtmpPacketSize = errors.New("chunk size should not changed")
 
-func NewProtocol(iorw *net.TCPConn, logger core.Logger, channel chan *RtmpMessage) *Protocol {
+type Protocol struct {
+	IoRw *net.TCPConn
+	Logger core.Logger
+	ChunkStreams map[int]*ChunkStream
+	InChunkSize int
+}
+
+func NewProtocol(iorw *net.TCPConn, logger core.Logger) *Protocol {
 	v := &Protocol{
 		IoRw: iorw,
 		Logger: logger,
-		Channel: channel,
+		InChunkSize: SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE,
 	}
 	v.ChunkStreams = map[int]*ChunkStream{}
 	return v
 }
 
-func (proto *Protocol) PumpMessage() (err error) {
+func (proto *Protocol) PumpMessage() (msg *RtmpMessage, err error) {
 	var fmt byte
 	var cid int
 	if fmt,cid,err = proto.readBasicHeader(); err != nil {
@@ -98,6 +100,18 @@ func (proto *Protocol) PumpMessage() (err error) {
 	proto.Logger.Info("read header ok. fmt=%v, message(type=%v, size=%v, time=%v, sid=%v), eb=%vB",
 		fmt, chunk.Msg.Header.MessageType, chunk.Header.PayloadLength, chunk.Header.Timestamp,
 		chunk.Header.StreamId, extsBuffer.Len())
+
+	if msg,err = proto.readMessagePayload(chunk, &extsBuffer); err != nil {
+		return
+	}
+
+	// not got an entire RTMP message, try next chunk.
+	if msg == nil {
+		return
+	}
+
+	proto.Logger.Info("get entire message success. size=%v, message(type=%v, size=%v, time=%v, sid=%v)",
+		len(msg.Payload), msg.Header.MessageType, msg.Header.PayloadLength, msg.Header.Timestamp, msg.Header.StreamId)
 
 	return
 }
@@ -464,6 +478,60 @@ func (proto *Protocol) readMessageHeader(chunk *ChunkStream, fmt byte, extsBuffe
 	return
 }
 
+func (proto *Protocol) readMessagePayload(chunk *ChunkStream, extsBuffer *bytes.Buffer) (msg *RtmpMessage, err error) {
+	// empty message
+	if chunk.Header.PayloadLength <= 0 {
+		proto.Logger.Trace("get an empty RTMP message(type=%v, size=%v, time=%v, sid=%v)",
+			chunk.Header.MessageType, chunk.Header.PayloadLength, chunk.Header.Timestamp, chunk.Header.StreamId)
+		msg = chunk.Msg
+		chunk.Msg = nil
+		return
+	}
+
+	// the chunk payload size.
+	payloadSize := int(chunk.Header.PayloadLength) - len(chunk.Msg.Payload) - extsBuffer.Len()
+	payloadSize = int(math.Min(float64(payloadSize), float64(proto.InChunkSize)))
+	proto.Logger.Info("chunk payload size is %v, ext=%v, message_size=%v, received_size=%v, in_chunk_size=%v",
+		payloadSize, extsBuffer.Len(), chunk.Header.PayloadLength, len(chunk.Msg.Payload), proto.InChunkSize)
+
+	// create msg payload if not initialized
+	if len(chunk.Msg.Payload) == 0 {
+		chunk.Msg.Payload = make([]byte, 0, chunk.Header.PayloadLength)
+		proto.Logger.Info("create payload for RTMP message. size=%v", chunk.Header.PayloadLength)
+	}
+
+	// the ext buffer read for extended timestamp, it's actually the payload.
+	if extsBuffer.Len() > 0 {
+		chunk.Msg.Payload = append(chunk.Msg.Payload, extsBuffer.Bytes()...)
+		proto.Logger.Info("copy ext buffer to payload, size=%v", extsBuffer.Len())
+	}
+
+	// read payload to buffer
+	b := make([]byte, payloadSize)
+	if _,err = io.ReadFull(proto.IoRw, b); err != nil {
+		if err != io.EOF {
+			proto.Logger.Error("read payload failed, size=%v, read=%v", chunk.Msg.Header.PayloadLength, payloadSize)
+		}
+		return
+	}
+	chunk.Msg.Payload = append(chunk.Msg.Payload, b...)
+	proto.Logger.Info("chunk payload read completed. payload_size=%v", payloadSize)
+
+	// got entire RTMP message?
+	if len(chunk.Msg.Payload) == int(chunk.Msg.Header.PayloadLength) {
+		msg = chunk.Msg
+		chunk.Msg = nil
+		proto.Logger.Info("get entire RTMP message(type=%v, size=%v, time=%v, sid=%v)",
+			chunk.Header.MessageType, chunk.Header.PayloadLength, chunk.Header.Timestamp, chunk.Header.StreamId)
+		return
+	}
+	proto.Logger.Info("get partial RTMP message(type=%v, size=%v, time=%v, sid=%v), partial size=%v",
+		chunk.Header.MessageType, chunk.Header.PayloadLength, chunk.Header.Timestamp, chunk.Header.StreamId,
+		len(chunk.Msg.Payload))
+
+	return
+}
+
 type ChunkStream struct {
 	Cid int
 	Header RtmpMessageHeader
@@ -519,10 +587,13 @@ type RtmpMessageHeader struct {
 // the rtmp protocol level message packet
 type RtmpMessage struct {
 	Header RtmpMessageHeader
+	Payload []byte
 }
 
 func NewRtmpMessage() *RtmpMessage {
-	return &RtmpMessage{}
+	return &RtmpMessage{
+		Payload: []byte{},
+	}
 }
 
 func (msg *RtmpMessage) String() string {
