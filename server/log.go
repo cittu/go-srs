@@ -31,6 +31,7 @@ import (
 )
 
 type Logger struct {
+    GoroutineId int
     Flag int
     Logger *log.Logger
 }

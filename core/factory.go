@@ -24,5 +24,5 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 package core
 
 type Factory interface {
-    CreateContext(name string) Context
+    CreateLogger(name string) Logger
 }

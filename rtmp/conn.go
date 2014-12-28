@@ -30,20 +30,19 @@ import (
 
 type Conn struct {
 	Server *Server
-	Connection *net.TCPConn
-	Context core.Context
+	IoRw *net.TCPConn
+	Logger core.Logger
 }
 
 func (c *Conn) Serve() {
-	defer c.Connection.Close()
-
-	c.Context.Log().Trace("serve client ip=%v", c.Connection.RemoteAddr().String())
+	defer c.IoRw.Close()
+	c.Logger.Trace("serve client ip=%v", c.IoRw.RemoteAddr().String())
 }
 
-func NewConn(svr *Server, conn *net.TCPConn, factory core.Factory) *Conn {
+func NewConn(svr *Server, conn *net.TCPConn) *Conn {
 	return &Conn{
 		Server: svr,
-		Connection: conn,
-		Context: factory.CreateContext("conn"),
+		IoRw: conn,
+		Logger: svr.Factory.CreateLogger("conn"),
 	}
 }

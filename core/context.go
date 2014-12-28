@@ -24,5 +24,4 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 package core
 
 type Context interface {
-    Log() Logger // get the logger of context.
 }

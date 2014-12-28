@@ -31,7 +31,7 @@ import (
 type Server struct {
 	Addr string
 	Factory core.Factory
-	Context core.Context
+	Logger core.Logger
 }
 
 func (svr *Server) ListenAndServe() error {
@@ -39,13 +39,13 @@ func (svr *Server) ListenAndServe() error {
 	if len(addr) == 0 {
 		addr = ":1935"
 	}
-	svr.Context.Log().Trace("server addr is %v", addr)
+	svr.Logger.Trace("server addr is %v", addr)
 
 	ln, err := net.Listen("tcp", addr)
 	if err  != nil {
 		return err
 	}
-	svr.Context.Log().Trace("listen at %v ok", addr)
+	svr.Logger.Trace("listen at %v ok", addr)
 
 	return svr.Serve(ln)
 }
@@ -61,7 +61,7 @@ func (svr *Server) Serve(l net.Listener) error {
 			return err
 		}
 
-		c := NewConn(svr, rw.(*net.TCPConn), svr.Factory)
+		c := NewConn(svr, rw.(*net.TCPConn))
 		go c.Serve()
 	}
 }

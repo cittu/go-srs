@@ -27,7 +27,6 @@ import (
     "os"
     "fmt"
     "log"
-    "io"
     "github.com/winlinvip/go-srs/core"
 )
 
@@ -40,18 +39,12 @@ func goroutineId() int {
 type Factory struct {
 }
 
-func NewLog(out io.Writer, prefix string, flag int) core.Logger {
+func (f *Factory) CreateLogger(name string) core.Logger {
     v := &Logger{}
-    v.Flag = flag
-    v.Logger = log.New(out, prefix, flag)
-    return v
-}
-
-func (f *Factory) CreateContext(name string) core.Context {
-    v := &Context{}
-    v.Id = goroutineId()
+    v.GoroutineId = goroutineId()
+    v.Flag = log.Ldate | log.Ltime | core.Ltrace | core.Lwarn | core.Lerror;
     // TODO: FIXME: apply config file.
-    v.Logger = NewLog(os.Stdout, fmt.Sprintf("[%s][%d][%d] ", name, os.Getpid(), v.Id),
-                        log.Ldate | log.Ltime | core.Ltrace | core.Lwarn | core.Lerror)
+    prefix := fmt.Sprintf("[%s][%d][%d] ", name, os.Getpid(), v.GoroutineId)
+    v.Logger = log.New(os.Stdout, prefix, v.Flag)
     return v
 }

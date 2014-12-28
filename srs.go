@@ -43,15 +43,14 @@ func main() {
 
 	// the factory to create objects.
 	factory := server.NewFactory()
-
-	ctx := factory.CreateContext("srs")
-	ctx.Log().Trace("Use %d cpus for multiple processes", core.Cpus)
+	logger := factory.CreateLogger("srs")
+	logger.Trace("Use %d cpus for multiple processes", core.Cpus)
 	runtime.GOMAXPROCS(core.Cpus)
 
-	ctx.Log().Trace("Rtmp listen at %v", core.ListenRtmp)
+	logger.Trace("Rtmp listen at %v", core.ListenRtmp)
 	go func(){
 		if err := rtmp.ListenAndServe(fmt.Sprintf(":%d", core.ListenRtmp), factory); err != nil {
-			ctx.Log().Error("Serve RTMP failed, err is %v", err)
+			logger.Error("Serve RTMP failed, err is %v", err)
 			return
 		}
 	}()
@@ -68,7 +67,7 @@ func main() {
 			"revision": core.Revision,
 		})
 		if err != nil {
-			ctx.Log().Error("marshal json failed, err is %v", err)
+			logger.Error("marshal json failed, err is %v", err)
 			return
 		}
 
@@ -76,9 +75,9 @@ func main() {
 	})
 
 	url := fmt.Sprintf("http://127.0.0.1:%d/api/v3/version", core.ListenApi)
-	ctx.Log().Trace("Api listen at %v, url is %v", core.ListenApi, url)
+	logger.Trace("Api listen at %v, url is %v", core.ListenApi, url)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", core.ListenApi), nil); err != nil {
-		ctx.Log().Error("Serve HTTP failed, err is %v", err)
+		logger.Error("Serve HTTP failed, err is %v", err)
 		return
 	}
 }

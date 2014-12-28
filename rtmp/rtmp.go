@@ -27,7 +27,7 @@ import "github.com/winlinvip/go-srs/core"
 
 func ListenAndServe(addr string, factory core.Factory) error {
 	server := &Server{Addr: addr, Factory: factory}
-	server.Context = factory.CreateContext("server")
+	server.Logger = factory.CreateLogger("server")
 	return server.ListenAndServe()
 }
 
