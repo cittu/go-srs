@@ -26,17 +26,32 @@ package rtmp
 import (
 	"net"
 	"github.com/winlinvip/go-srs/core"
+	"math/rand"
+	"time"
 )
 
 type Conn struct {
 	Server *Server
 	IoRw *net.TCPConn
 	Logger core.Logger
+	Rand *rand.Rand // the random to generate the handshake bytes.
 }
 
-func (c *Conn) Serve() {
-	defer c.IoRw.Close()
-	c.Logger.Trace("serve client ip=%v", c.IoRw.RemoteAddr().String())
+func (conn *Conn) Serve() {
+	defer conn.IoRw.Close()
+	conn.Logger.Trace("serve client ip=%v", conn.IoRw.RemoteAddr().String())
+
+	if err := conn.IoRw.SetNoDelay(false); err != nil {
+		conn.Logger.Error("tcp SetNoDelay failed, err is %v", err)
+		return
+	}
+	conn.Logger.Info("tcp SetNoDelay ok")
+
+	hs := SimpleHandshake{}
+	if err := hs.WithClient(conn); err != nil {
+		conn.Logger.Error("handshake failed, err is %v", err)
+		return
+	}
 }
 
 func NewConn(svr *Server, conn *net.TCPConn) *Conn {
@@ -44,5 +59,6 @@ func NewConn(svr *Server, conn *net.TCPConn) *Conn {
 		Server: svr,
 		IoRw: conn,
 		Logger: svr.Factory.CreateLogger("conn"),
+		Rand: rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 }

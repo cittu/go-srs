@@ -21,30 +21,13 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-package server
+package rtmp
 
-import (
-    "os"
-    "fmt"
-    "log"
-    "github.com/winlinvip/go-srs/core"
-)
+import "math/rand"
 
-var goroutineIdSeed int = 99
-func goroutineId() int {
-    goroutineIdSeed += 1
-    return goroutineIdSeed
-}
-
-type Factory struct {
-}
-
-func (f *Factory) CreateLogger(name string) core.Logger {
-    v := &Logger{}
-    v.GoroutineId = goroutineId()
-    v.Flag = log.Ldate | log.Ltime | core.Linfo | core.Ltrace | core.Lwarn | core.Lerror;
-    // TODO: FIXME: apply config file.
-    prefix := fmt.Sprintf("[%s][%d][%d] ", name, os.Getpid(), v.GoroutineId)
-    v.Logger = log.New(os.Stdout, prefix, v.Flag)
-    return v
+func RandomGenerate (r *rand.Rand, b []byte) {
+    for i,_ := range b {
+        // the common value in [0x0f, 0xf0]
+        b[i] = 0x0f + byte(r.Int31() % (256 - 0x0f - 0x0f))
+    }
 }
