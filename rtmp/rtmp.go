@@ -21,13 +21,24 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-package server
+package rtmp
 
 import (
     "github.com/winlinvip/go-srs/protocol"
+    "github.com/winlinvip/go-srs/core"
 )
 
-func NewFactory() protocol.Factory {
+var factory = newFactory()
+
+func newFactory() protocol.Factory {
     f := &Factory{}
     return f
+}
+
+func CreateLogger(name string) core.Logger {
+    return factory.CreateLogger(name)
+}
+
+func ListenAndServe(addr string) error {
+    return protocol.ListenAndServe(addr, factory)
 }

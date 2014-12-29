@@ -30,8 +30,7 @@ import (
 	"encoding/json"
 	"runtime"
 	"github.com/winlinvip/go-srs/core"
-	"github.com/winlinvip/go-srs/protocol"
-	"github.com/winlinvip/go-srs/server"
+	"github.com/winlinvip/go-srs/rtmp"
 )
 
 func main() {
@@ -42,14 +41,13 @@ func main() {
 	// TODO: FIXME: read and parse the config file.
 
 	// the factory to create objects.
-	factory := server.NewFactory()
-	logger := factory.CreateLogger("srs")
+	logger := rtmp.CreateLogger("srs")
 	logger.Trace("Use %d cpus for multiple processes", core.Cpus)
 	runtime.GOMAXPROCS(core.Cpus)
 
 	logger.Trace("Rtmp listen at %v", core.ListenRtmp)
 	go func(){
-		if err := protocol.ListenAndServe(fmt.Sprintf(":%d", core.ListenRtmp), factory); err != nil {
+		if err := rtmp.ListenAndServe(fmt.Sprintf(":%d", core.ListenRtmp)); err != nil {
 			logger.Error("Serve RTMP failed, err is %v", err)
 			return
 		}

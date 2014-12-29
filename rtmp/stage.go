@@ -21,7 +21,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-package server
+package rtmp
 
 import (
     "github.com/winlinvip/go-srs/core"
@@ -46,7 +46,7 @@ func (cs *connectStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
         return
     }
 
-    var pkt rtmp.RtmpPacket
+    var pkt protocol.RtmpPacket
     if pkt,err = cs.conn.Protocol.DecodeMessage(msg); err != nil {
         return
     }
