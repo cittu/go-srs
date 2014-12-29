@@ -75,6 +75,10 @@ var Amf0UndefinedMarkerCheck = errors.New("amf0 check undefined marker failed.")
 var Amf0ObjectMarkerRead = errors.New("amf0 read object marker failed.")
 var Amf0ObjectMarkerCheck = errors.New("amf0 check object marker failed.")
 var Amf0ObjectEofRequired = errors.New("amf0 required object eof.")
+var Amf0EcmaArrayMarkerRead = errors.New("amf0 read ecma array marker failed.")
+var Amf0EcmaArrayMarkerCheck = errors.New("amf0 check ecma array marker failed.")
+var Amf0EcmaArrayCountRead = errors.New("amf0 read ecma array value failed.")
+var Amf0EcmaArrayEofRequired = errors.New("amf0 required ecma array eof.")
 
 type Amf0String string
 
@@ -194,34 +198,156 @@ type amf0Property struct {
     value Amf0Any
 }
 
-type Amf0Object struct {
+type amf0SortedDict struct {
     properties map[string]Amf0Any
     sorted_properties []*amf0Property
 }
 
-func NewAmf0Object() *Amf0Object {
-    return &Amf0Object {
-        properties: make(map[string]Amf0Any),
-        sorted_properties: make([]*amf0Property, 0),
+func (sd *amf0SortedDict) Set(name string, value Amf0Any) {
+    // remove the elem when exists
+    if _,ok := sd.properties[name]; ok {
+        delete(sd.properties, name)
+        for i,v := range sd.sorted_properties {
+            if v.name == name {
+                sd.sorted_properties = append(sd.sorted_properties[:i], sd.sorted_properties[i+1:]...)
+                break
+            }
+        }
     }
+
+    // append to object.
+    sd.properties[name] = value
+    prop := &amf0Property{
+        name: name,
+        value: value,
+    }
+    sd.sorted_properties = append(sd.sorted_properties, prop)
 }
 
-func (obj *Amf0Object) GetString(name string) (v Amf0String, ok bool) {
+func (sd *amf0SortedDict) GetString(name string) (v Amf0String, ok bool) {
     var any Amf0Any
-    if any,ok = obj.properties[name]; !ok {
+    if any,ok = sd.properties[name]; !ok {
         return
     }
     v,ok = any.(Amf0String)
     return
 }
 
-func (obj *Amf0Object) GetNumber(name string) (v Amf0Number, ok bool) {
+func (sd *amf0SortedDict) GetNumber(name string) (v Amf0Number, ok bool) {
     var any Amf0Any
-    if any,ok = obj.properties[name]; !ok {
+    if any,ok = sd.properties[name]; !ok {
         return
     }
     v,ok = any.(Amf0Number)
     return
+}
+
+/**
+* 2.10 ECMA Array Type
+* ecma-array-type = associative-count *(object-property)
+* associative-count = U32
+* object-property = (UTF-8 value-type) | (UTF-8-empty object-end-marker)
+*/
+type Amf0EcmaArray struct {
+    properties amf0SortedDict
+    count int32
+}
+
+func NewAmf0EcmaArray() *Amf0EcmaArray {
+    v := &Amf0EcmaArray {}
+    v.properties.properties = make(map[string]Amf0Any)
+    v.properties.sorted_properties = make([]*amf0Property, 0)
+    return v
+}
+
+func (arr *Amf0EcmaArray) Set(name string, value Amf0Any) {
+    arr.properties.Set(name, value)
+}
+
+func (arr *Amf0EcmaArray) GetString(name string) (v Amf0String, ok bool) {
+    return arr.properties.GetString(name)
+}
+
+func (arr *Amf0EcmaArray) GetNumber(name string) (v Amf0Number, ok bool) {
+    return arr.properties.GetNumber(name)
+}
+
+func (arr *Amf0EcmaArray) Decode(buffer *bytes.Buffer) (err error) {
+    // marker
+    var marker byte
+    if marker,err = buffer.ReadByte(); err != nil {
+        err = Amf0EcmaArrayMarkerRead
+        return
+    }
+
+    if marker != RTMP_AMF0_EcmaArray {
+        err = Amf0EcmaArrayMarkerCheck
+        return
+    }
+
+    // ecma array count
+    if err = binary.Read(buffer, binary.BigEndian, &arr.count); err != nil {
+        err = Amf0EcmaArrayCountRead
+        return
+    }
+
+    // ecma array properties
+    for buffer.Len() > 0 {
+        // atleast an object EOF
+        if buffer.Len() < 3 {
+            return Amf0EcmaArrayEofRequired
+        }
+        // peek the marker
+        marker := buffer.Bytes()[2]
+
+        // read object EOF.
+        if marker == RTMP_AMF0_ObjectEnd {
+            _,err = buffer.Read(make([]byte, 3))
+            return
+        }
+
+        // read an object property
+        var name string
+        if name,err = parseAmf0Utf8(buffer); err != nil {
+            return
+        }
+
+        var value Amf0Any
+        if value,err = ParseAmf0Any(buffer); err != nil {
+            return
+        }
+
+        arr.Set(name, value)
+    }
+    return
+}
+
+/**
+* 2.5 Object Type
+* anonymous-object-type = object-marker *(object-property)
+* object-property = (UTF-8 value-type) | (UTF-8-empty object-end-marker)
+*/
+type Amf0Object struct {
+    properties amf0SortedDict
+}
+
+func NewAmf0Object() *Amf0Object {
+    v := &Amf0Object {}
+    v.properties.properties = make(map[string]Amf0Any)
+    v.properties.sorted_properties = make([]*amf0Property, 0)
+    return v
+}
+
+func (obj *Amf0Object) Set(name string, value Amf0Any) {
+    obj.properties.Set(name, value)
+}
+
+func (obj *Amf0Object) GetString(name string) (v Amf0String, ok bool) {
+    return obj.properties.GetString(name)
+}
+
+func (obj *Amf0Object) GetNumber(name string) (v Amf0Number, ok bool) {
+    return obj.properties.GetNumber(name)
 }
 
 func (obj *Amf0Object) Decode(buffer *bytes.Buffer) (err error) {
@@ -263,12 +389,7 @@ func (obj *Amf0Object) Decode(buffer *bytes.Buffer) (err error) {
             return
         }
 
-        obj.properties[name] = value
-        prop := &amf0Property{
-            name: name,
-            value: value,
-        }
-        obj.sorted_properties = append(obj.sorted_properties, prop)
+        obj.Set(name, value)
     }
     return
 }

@@ -24,5 +24,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 package core
 
 type Factory interface {
-    CreateLogger(name string) Logger
+    SrsId() int
+    CreateLogger(name string, srsId int) Logger
 }

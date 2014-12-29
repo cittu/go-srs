@@ -40,9 +40,13 @@ func goroutineId() int {
 type Factory struct {
 }
 
-func (f *Factory) CreateLogger(name string) core.Logger {
+func (f *Factory) SrsId() int {
+    return goroutineId()
+}
+
+func (f *Factory) CreateLogger(name string, srsId int) core.Logger {
     v := &Logger{}
-    v.GoroutineId = goroutineId()
+    v.GoroutineId = srsId
     v.Flag = log.Ldate | log.Ltime | core.Linfo | core.Ltrace | core.Lwarn | core.Lerror
     //v.Flag = log.Ldate | log.Ltime | core.Ltrace | core.Lwarn | core.Lerror
     // TODO: FIXME: apply config file.

@@ -267,6 +267,10 @@ func NewProtocol(iorw *net.TCPConn, logger core.Logger) *Protocol {
 	return v
 }
 
+func (proto *Protocol) EncodeMessage(pkt RtmpPacket, streamId int) (msg *RtmpMessage, err error) {
+	return
+}
+
 func (proto *Protocol) DecodeMessage(msg *RtmpMessage) (pkt RtmpPacket, err error) {
 	var b []byte
 	if b,pkt,err = DiscoveryPacket(msg, proto.Logger); err != nil {

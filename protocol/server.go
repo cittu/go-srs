@@ -68,6 +68,6 @@ func (svr *Server) Serve(l net.Listener) error {
 
 func ListenAndServe(addr string, factory Factory) error {
 	server := &Server{Addr: addr, Factory: factory}
-	server.Logger = factory.CreateLogger("server")
+	server.Logger = factory.CreateLogger("server", factory.SrsId())
 	return server.ListenAndServe()
 }

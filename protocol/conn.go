@@ -30,9 +30,13 @@ import (
 	"time"
 	"runtime"
 	"io"
+	"errors"
 )
 
+var RtmpInChannelMsg = errors.New("put msg to channel failed")
+
 type Conn struct {
+	SrsId int
 	Server *Server
 	IoRw *net.TCPConn
 	Logger core.Logger
@@ -82,6 +86,42 @@ func (conn *Conn) Serve() {
 		return
 	}
 	conn.Logger.Trace("serve conn ok")
+}
+
+func (conn *Conn) SetWindowAckSize(ackSize int) (err error) {
+	var msg *RtmpMessage
+	if msg,err = conn.Protocol.EncodeMessage(NewRtmpSetWindowAckSizePacket(ackSize), 0); err != nil {
+		return
+	}
+	conn.OutChannel <- msg
+	return
+}
+
+func (conn *Conn) SetPeerBandwidth(bandwidth, _type int) (err error) {
+	var msg *RtmpMessage
+	if msg,err = conn.Protocol.EncodeMessage(NewRtmpSetPeerBandwidthPacket(bandwidth, _type), 0); err != nil {
+		return
+	}
+	conn.OutChannel <- msg
+	return
+}
+
+func (conn *Conn) OnBwDone() (err error) {
+	var msg *RtmpMessage
+	if msg,err = conn.Protocol.EncodeMessage(NewRtmpOnBWDonePacket(), 0); err != nil {
+		return
+	}
+	conn.OutChannel <- msg
+	return
+}
+
+func (conn *Conn) ResponseConnectApp(objectEncoding int, serverIp string) (err error) {
+	var msg *RtmpMessage
+	if msg,err = conn.Protocol.EncodeMessage(NewRtmpConnectAppResPacket(objectEncoding, serverIp, conn.SrsId), 0); err != nil {
+		return
+	}
+	conn.OutChannel <- msg
+	return
 }
 
 func (conn *Conn) messageCycle() (err error) {
@@ -149,9 +189,12 @@ func NewConn(svr *Server, conn *net.TCPConn) *Conn {
 	v := &Conn{
 		Server: svr,
 		IoRw: conn,
-		Logger: svr.Factory.CreateLogger("conn"),
 		Rand: rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
+
+	// the srs id
+	v.SrsId = svr.Factory.SrsId()
+	v.Logger = svr.Factory.CreateLogger("conn", v.SrsId)
 
 	// TODO: FIXME: channel with buffer
 	v.InChannel = make(chan *RtmpMessage)

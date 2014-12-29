@@ -36,7 +36,7 @@ func newFactory() protocol.Factory {
 }
 
 func CreateLogger(name string) core.Logger {
-    return factory.CreateLogger(name)
+    return factory.CreateLogger(name, factory.SrsId())
 }
 
 func ListenAndServe(addr string) error {

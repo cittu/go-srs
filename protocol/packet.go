@@ -26,6 +26,52 @@ package protocol
 import (
     "github.com/winlinvip/go-srs/core"
     "bytes"
+    "encoding/binary"
+    "errors"
+    "fmt"
+    "os"
+)
+
+var RtmpMsgSwaspRead = errors.New("decode ack window size failed.")
+var RtmpMsgSpbpRead = errors.New("decode set peer bandwidth failed.")
+
+const (
+    /**
+    * the signature for packets to client.
+    */
+    RTMP_SIG_FMS_VER = "3,5,3,888"
+    RTMP_SIG_AMF0_VER = 0
+    RTMP_SIG_CLIENT_ID = "ASAICiss"
+
+    /**
+    * onStatus consts.
+    */
+    StatusLevel = "level"
+    StatusCode = "code"
+    StatusDescription = "description"
+    StatusDetails = "details"
+    StatusClientId = "clientid"
+    // status value
+    StatusLevelStatus = "status"
+    // status error
+    StatusLevelError = "error"
+    // code value
+    StatusCodeConnectSuccess = "NetConnection.Connect.Success"
+    StatusCodeConnectRejected = "NetConnection.Connect.Rejected"
+    StatusCodeStreamReset = "NetStream.Play.Reset"
+    StatusCodeStreamStart = "NetStream.Play.Start"
+    StatusCodeStreamPause = "NetStream.Pause.Notify"
+    StatusCodeStreamUnpause = "NetStream.Unpause.Notify"
+    StatusCodePublishStart = "NetStream.Publish.Start"
+    StatusCodeDataStart = "NetStream.Data.Start"
+    StatusCodeUnpublishSuccess = "NetStream.Unpublish.Success"
+
+    // FMLE
+    RTMP_AMF0_COMMAND_ON_FC_PUBLISH = "onFCPublish"
+    RTMP_AMF0_COMMAND_ON_FC_UNPUBLISH = "onFCUnpublish"
+
+    // default stream id for response the createStream request.
+    SRS_DEFAULT_SID = 1
 )
 
 func DiscoveryPacket(msg *RtmpMessage, logger core.Logger) (b []byte, pkt RtmpPacket, err error) {
@@ -122,7 +168,7 @@ type RtmpConnectAppPacket struct {
     Arguments *Amf0Object
 }
 
-func NewRtmpConnectAppPacket() *RtmpConnectAppPacket {
+func NewRtmpConnectAppPacket() RtmpPacket {
     return &RtmpConnectAppPacket{
         CommandObject: NewAmf0Object(),
         Arguments: nil,
@@ -167,6 +213,64 @@ func (cap *RtmpConnectAppPacket) Decode(buffer *bytes.Buffer, logger core.Logger
 }
 
 /**
+* response for SrsConnectAppPacket.
+*/
+type RtmpConnectAppResPacket struct {
+    RtmpCommonCallPacket
+    /**
+    * Name-value pairs that describe the properties(fmsver etc.) of the connection.
+    * @remark, never be NULL.
+    */
+    Props *Amf0Object
+    /**
+    * Name-value pairs that describe the response from|the server. ‘code’,
+    * ‘level’, ‘description’ are names of few among such information.
+    * @remark, never be NULL.
+    */
+    Info *Amf0Object
+}
+
+func NewRtmpConnectAppResPacket(objectEncoding int, serverIp string, srsId int) RtmpPacket {
+    v := &RtmpConnectAppResPacket{
+        Props: NewAmf0Object(),
+        Info: NewAmf0Object(),
+    }
+    v.Props.Set("fmsVer", Amf0String(fmt.Sprintf("FMS/%v", RTMP_SIG_FMS_VER)))
+    v.Props.Set("capabilities", Amf0Number(127))
+    v.Props.Set("mode", Amf0Number(1))
+
+    v.Props.Set(StatusLevel, Amf0String(StatusLevelStatus))
+    v.Props.Set(StatusCode, Amf0String(StatusCodeConnectSuccess))
+    v.Props.Set(StatusDescription, Amf0String("Connection succeeded"))
+    v.Props.Set("objectEncoding", Amf0Number(objectEncoding))
+
+    data := NewAmf0EcmaArray()
+    v.Props.Set("data", data)
+    data.Set("version", Amf0String(RTMP_SIG_FMS_VER))
+    data.Set("srs_sig", Amf0String(core.RTMP_SIG_SRS_KEY))
+    data.Set("srs_server", Amf0String(fmt.Sprintf("%v %v (%v)",
+        core.RTMP_SIG_SRS_KEY, core.RTMP_SIG_SRS_VERSION, core.RTMP_SIG_SRS_URL_SHORT)))
+    data.Set("srs_license", Amf0String(core.RTMP_SIG_SRS_LICENSE))
+    data.Set("srs_role", Amf0String(core.RTMP_SIG_SRS_ROLE))
+    data.Set("srs_url", Amf0String(core.RTMP_SIG_SRS_URL))
+    data.Set("srs_version", Amf0String(core.RTMP_SIG_SRS_VERSION))
+    data.Set("srs_site", Amf0String(core.RTMP_SIG_SRS_WEB))
+    data.Set("srs_email", Amf0String(core.RTMP_SIG_SRS_EMAIL))
+    data.Set("srs_copyright", Amf0String(core.RTMP_SIG_SRS_COPYRIGHT))
+    data.Set("srs_primary", Amf0String(core.RTMP_SIG_SRS_PRIMARY))
+    data.Set("srs_authors", Amf0String(core.RTMP_SIG_SRS_AUTHROS))
+
+    if serverIp != "" {
+        data.Set("srs_server_ip", Amf0String(serverIp))
+    }
+    // for edge to directly get the id of client.
+    data.Set("srs_pid", Amf0Number(os.Getpid()))
+    data.Set("srs_id", Amf0Number(srsId))
+
+    return v
+}
+
+/**
 * 4.1.2. Call
 * The call method of the NetConnection object runs remote procedure
 * calls (RPC) at the receiving end. The called RPC name is passed as a
@@ -188,5 +292,83 @@ type RtmpCallPacket struct {
 }
 
 func (cp *RtmpCallPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    return
+}
+
+/**
+* 5.5. Window Acknowledgement Size (5)
+* The client or the server sends this message to inform the peer which
+* window size to use when sending acknowledgment.
+*/
+type RtmpSetWindowAckSizePacket struct {
+    AckowledgementWindowSize int32
+}
+
+func NewRtmpSetWindowAckSizePacket(ackSize int) RtmpPacket {
+    return &RtmpSetWindowAckSizePacket{
+        AckowledgementWindowSize: int32(ackSize),
+    }
+}
+
+func (swasp *RtmpSetWindowAckSizePacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = binary.Read(buffer, binary.BigEndian, &swasp.AckowledgementWindowSize); err != nil {
+        return RtmpMsgSwaspRead
+    }
+    return
+}
+
+/**
+* 5.6. Set Peer Bandwidth (6)
+* The client or the server sends this message to update the output
+* bandwidth of the peer.
+*/
+type RtmpSetPeerBandwidthPacket struct {
+    Bandwidth int32
+    // @see: SrsPeerBandwidthType
+    Type byte
+}
+
+func NewRtmpSetPeerBandwidthPacket(bandwidth, _type int) RtmpPacket {
+    return &RtmpSetPeerBandwidthPacket{
+        Bandwidth: int32(bandwidth),
+        Type: byte(_type),
+    }
+}
+
+func (spbp *RtmpSetPeerBandwidthPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = binary.Read(buffer, binary.BigEndian, &spbp.Bandwidth); err != nil {
+        return RtmpMsgSpbpRead
+    }
+    if err = binary.Read(buffer, binary.BigEndian, &spbp.Type); err != nil {
+        return RtmpMsgSpbpRead
+    }
+    return
+}
+
+/**
+* when bandwidth test done, notice client.
+*/
+type RtmpOnBWDonePacket struct {
+    RtmpCommonCallPacket
+    /**
+    * Command information does not exist. Set to null type.
+    * @remark, never be NULL, an AMF0 null instance.
+    */
+    Args Amf0Null
+}
+
+func NewRtmpOnBWDonePacket() RtmpPacket {
+    v := &RtmpOnBWDonePacket{}
+    v.CommandName = Amf0String(RTMP_AMF0_COMMAND_ON_BW_DONE)
+    return v
+}
+
+func (spbp *RtmpOnBWDonePacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = spbp.RtmpCommonCallPacket.Decode(buffer, logger); err != nil {
+        return
+    }
+    if err = ParseAmf0Null(buffer); err != nil {
+        return
+    }
     return
 }

@@ -27,6 +27,7 @@ import (
     "github.com/winlinvip/go-srs/core"
     "github.com/winlinvip/go-srs/protocol"
     "errors"
+    "net"
 )
 
 var FinalStage = errors.New("rtmp final stage")
@@ -84,6 +85,42 @@ func (cs *connectStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
             cs.logger.Trace("edge-srs ip=%v, version=%v, pid=%v, id=%v",
                 si.SrsServerIp, si.SrsVersion, si.SrsPid, si.SrsId)
         }
+
+        if err = cs.conn.SetWindowAckSize(2.5 * 1000 * 1000); err != nil {
+            cs.logger.Error("set window acknowledgement size failed.")
+            return
+        }
+        cs.logger.Info("set window acknowledgement size success")
+
+        if err = cs.conn.SetPeerBandwidth(2.5 * 1000 * 1000, 2); err != nil {
+            cs.logger.Error("set peer bandwidth failed.")
+            return
+        }
+        cs.logger.Info("set peer bandwidth success")
+
+        // get the ip which client connected.
+        var iorw *net.TCPConn = cs.conn.IoRw
+        localIp := iorw.LocalAddr().String()
+
+        // do bandwidth test if connect to the vhost which is for bandwidth check.
+        // TODO: FIXME: implements it
+
+        // do token traverse before serve it.
+        // @see https://github.com/winlinvip/simple-rtmp-server/pull/239
+        // TODO: FIXME: implements it
+
+        // response the client connect ok.
+        if err = cs.conn.ResponseConnectApp(req.ObjectEncoding, localIp); err != nil {
+            cs.logger.Error("response connect app failed.")
+            return
+        }
+        cs.logger.Info("response connect app success")
+
+        if err = cs.conn.OnBwDone(); err != nil {
+            cs.logger.Error("on_bw_done failed.")
+            return
+        }
+        cs.logger.Info("on_bw_done success")
 
         // use next stage.
         cs.conn.Stage = NewFinalStage(cs.conn)
