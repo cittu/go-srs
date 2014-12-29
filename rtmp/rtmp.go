@@ -597,7 +597,8 @@ func NewRtmpMessage() *RtmpMessage {
 }
 
 func (msg *RtmpMessage) String() string {
-	return ""
+	return fmt.Sprintf("Message(%v,%v,%v)",
+		msg.Header.MessageType, msg.Header.Timestamp, msg.Header.PayloadLength)
 }
 
 func ListenAndServe(addr string, factory core.Factory) error {

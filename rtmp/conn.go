@@ -29,6 +29,7 @@ import (
 	"math/rand"
 	"time"
 	"runtime"
+	"io"
 )
 
 type Conn struct {
@@ -114,15 +115,17 @@ func (conn *Conn) PumpMessage() {
 		conn.Logger.Info("close the incoming channel")
 		close(conn.InChannel)
 
-		conn.Logger.Trace("stop pump rtmp messages")
+		conn.Logger.Info("stop pump rtmp messages")
 	}()
-	conn.Logger.Trace("start pump rtmp messages")
+	conn.Logger.Info("start pump rtmp messages")
 
 	for {
 		var msg *RtmpMessage
 		var err error
 		if msg,err = conn.Protocol.PumpMessage(); err != nil {
-			conn.Logger.Error("pump message failed, err is %v", err)
+			if err != io.EOF {
+				conn.Logger.Error("pump message failed, err is %v", err)
+			}
 			return
 		}
 
