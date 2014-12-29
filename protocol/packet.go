@@ -123,18 +123,15 @@ func DiscoveryPacket(msg *RtmpMessage, logger core.Logger) (b []byte, pkt RtmpPa
 
 // the rtmp packet, decoded from rtmp message payload.
 type RtmpPacket interface {
+    // decode methods
     Decode(buffer *bytes.Buffer, logger core.Logger) error
+    // encode methods
     Encode(buffer *bytes.Buffer, logger core.Logger) error
-}
-
-// the common packet for protocol to send
-type rtmpCommonPacket interface {
-    RtmpPacket
     MessageType() byte
     PerferCid() int
 }
 
-type RtmpCommonCallPacket struct {
+type rtmpCommonCallPacket struct {
     /**
     * Name of the remote procedure that is called.
     */
@@ -145,7 +142,7 @@ type RtmpCommonCallPacket struct {
     TransactionId Amf0Number
 }
 
-func (pkt *RtmpCommonCallPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+func (pkt *rtmpCommonCallPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
     if pkt.CommandName,err = DecodeAmf0String(buffer); err != nil {
         return
     }
@@ -155,7 +152,7 @@ func (pkt *RtmpCommonCallPacket) Decode(buffer *bytes.Buffer, logger core.Logger
     return
 }
 
-func (pkt *RtmpCommonCallPacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+func (pkt *rtmpCommonCallPacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
     if err = EncodeAmf0String(buffer, pkt.CommandName); err != nil {
         return
     }
@@ -171,7 +168,7 @@ func (pkt *RtmpCommonCallPacket) Encode(buffer *bytes.Buffer, logger core.Logger
 * connection to a server application instance.
 */
 type RtmpConnectAppPacket struct {
-    RtmpCommonCallPacket
+    rtmpCommonCallPacket
     /**
     * Command information object which has the name-value pairs.
     * @remark: alloc in packet constructor, user can directly use it,
@@ -194,7 +191,7 @@ func NewRtmpConnectAppPacket() RtmpPacket {
 }
 
 func (pkt *RtmpConnectAppPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
-    if err = pkt.RtmpCommonCallPacket.Decode(buffer, logger); err != nil {
+    if err = pkt.rtmpCommonCallPacket.Decode(buffer, logger); err != nil {
         return
     }
 
@@ -234,11 +231,19 @@ func (pkt *RtmpConnectAppPacket) Encode(buffer *bytes.Buffer, logger core.Logger
     return
 }
 
+func (pkt *RtmpConnectAppPacket) MessageType() byte {
+    return RTMP_MSG_AMF0CommandMessage
+}
+
+func (pkt *RtmpConnectAppPacket) PerferCid() int {
+    return RTMP_CID_OverConnection
+}
+
 /**
 * response for SrsConnectAppPacket.
 */
 type RtmpConnectAppResPacket struct {
-    RtmpCommonCallPacket
+    rtmpCommonCallPacket
     /**
     * Name-value pairs that describe the properties(fmsver etc.) of the connection.
     * @remark, never be NULL.
@@ -293,7 +298,7 @@ func NewRtmpConnectAppResPacket(objectEncoding int, serverIp string, srsId int) 
 }
 
 func (pkt *RtmpConnectAppResPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
-    if err = pkt.RtmpCommonCallPacket.Decode(buffer, logger); err != nil {
+    if err = pkt.rtmpCommonCallPacket.Decode(buffer, logger); err != nil {
         return
     }
     if err = pkt.Props.Decode(buffer); err != nil {
@@ -306,7 +311,7 @@ func (pkt *RtmpConnectAppResPacket) Decode(buffer *bytes.Buffer, logger core.Log
 }
 
 func (pkt *RtmpConnectAppResPacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
-    if err = pkt.RtmpCommonCallPacket.Encode(buffer, logger); err != nil {
+    if err = pkt.rtmpCommonCallPacket.Encode(buffer, logger); err != nil {
         return
     }
     if err = pkt.Props.Encode(buffer); err != nil {
@@ -318,6 +323,14 @@ func (pkt *RtmpConnectAppResPacket) Encode(buffer *bytes.Buffer, logger core.Log
     return
 }
 
+func (pkt *RtmpConnectAppResPacket) MessageType() byte {
+    return RTMP_MSG_AMF0CommandMessage
+}
+
+func (pkt *RtmpConnectAppResPacket) PerferCid() int {
+    return RTMP_CID_OverConnection
+}
+
 /**
 * 4.1.2. Call
 * The call method of the NetConnection object runs remote procedure
@@ -325,7 +338,7 @@ func (pkt *RtmpConnectAppResPacket) Encode(buffer *bytes.Buffer, logger core.Log
 * parameter to the call command.
 */
 type RtmpCallPacket struct {
-    RtmpCommonCallPacket
+    rtmpCommonCallPacket
     /**
     * If there exists any command info this
     * is set, else this is set to null type.
@@ -345,6 +358,14 @@ func (pkt *RtmpCallPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err
 
 func (pkt *RtmpCallPacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
     return
+}
+
+func (pkt *RtmpCallPacket) MessageType() byte {
+    return RTMP_MSG_AMF0CommandMessage
+}
+
+func (pkt *RtmpCallPacket) PerferCid() int {
+    return RTMP_CID_OverConnection
 }
 
 /**
@@ -371,6 +392,14 @@ func (pkt *RtmpSetWindowAckSizePacket) Decode(buffer *bytes.Buffer, logger core.
 
 func (pkt *RtmpSetWindowAckSizePacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
     return
+}
+
+func (pkt *RtmpSetWindowAckSizePacket) MessageType() byte {
+    return RTMP_MSG_WindowAcknowledgementSize
+}
+
+func (pkt *RtmpSetWindowAckSizePacket) PerferCid() int {
+    return RTMP_CID_ProtocolControl
 }
 
 /**
@@ -405,11 +434,19 @@ func (pkt *RtmpSetPeerBandwidthPacket) Encode(buffer *bytes.Buffer, logger core.
     return
 }
 
+func (pkt *RtmpSetPeerBandwidthPacket) MessageType() byte {
+    return RTMP_MSG_SetPeerBandwidth
+}
+
+func (pkt *RtmpSetPeerBandwidthPacket) PerferCid() int {
+    return RTMP_CID_ProtocolControl
+}
+
 /**
 * when bandwidth test done, notice client.
 */
 type RtmpOnBWDonePacket struct {
-    RtmpCommonCallPacket
+    rtmpCommonCallPacket
     /**
     * Command information does not exist. Set to null type.
     * @remark, never be NULL, an AMF0 null instance.
@@ -424,7 +461,7 @@ func NewRtmpOnBWDonePacket() RtmpPacket {
 }
 
 func (pkt *RtmpOnBWDonePacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
-    if err = pkt.RtmpCommonCallPacket.Decode(buffer, logger); err != nil {
+    if err = pkt.rtmpCommonCallPacket.Decode(buffer, logger); err != nil {
         return
     }
     if err = DecodeAmf0Null(buffer); err != nil {
@@ -435,4 +472,12 @@ func (pkt *RtmpOnBWDonePacket) Decode(buffer *bytes.Buffer, logger core.Logger) 
 
 func (pkt *RtmpOnBWDonePacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
     return
+}
+
+func (pkt *RtmpOnBWDonePacket) MessageType() byte {
+    return RTMP_MSG_AMF0CommandMessage
+}
+
+func (pkt *RtmpOnBWDonePacket) PerferCid() int {
+    return RTMP_CID_OverConnection
 }

@@ -41,7 +41,6 @@ var RtmpRequestSchemaEmpty = errors.New("request schema is empty")
 var RtmpRequestVhostEmpty = errors.New("request vhost is empty")
 var RtmpRequestPortEmpty = errors.New("request port is empty")
 var RtmpRequestAppEmpty = errors.New("request app is empty")
-var RtmpMustBeCommonPacket = errors.New("packet to send must be common packet")
 
 /**
 * 6.1.2. Chunk Message Header
@@ -269,23 +268,17 @@ func NewProtocol(iorw *net.TCPConn, logger core.Logger) *Protocol {
 }
 
 func (proto *Protocol) EncodeMessage(pkt RtmpPacket, streamId int) (msg *RtmpMessage, err error) {
-	if pkt,ok := pkt.(rtmpCommonPacket); ok {
-		buffer := bytes.Buffer{}
-		if err = pkt.Encode(&buffer, proto.Logger); err != nil {
-			return
-		}
-
-		msg = NewRtmpMessage()
-		msg.Payload = buffer.Bytes()
-		msg.Header.PayloadLength = int32(len(msg.Payload))
-		msg.Header.MessageType = int8(pkt.MessageType())
-		msg.Header.StreamId = int32(streamId)
-		msg.Header.PerferCid = pkt.PerferCid()
-
+	buffer := bytes.Buffer{}
+	if err = pkt.Encode(&buffer, proto.Logger); err != nil {
 		return
 	}
-	
-	err = RtmpMustBeCommonPacket
+
+	msg = NewRtmpMessage()
+	msg.Payload = buffer.Bytes()
+	msg.Header.PayloadLength = int32(len(msg.Payload))
+	msg.Header.MessageType = int8(pkt.MessageType())
+	msg.Header.StreamId = int32(streamId)
+	msg.Header.PerferCid = pkt.PerferCid()
 	return
 }
 
