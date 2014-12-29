@@ -65,3 +65,9 @@ func (svr *Server) Serve(l net.Listener) error {
 		go c.Serve()
 	}
 }
+
+func ListenAndServe(addr string, factory core.Factory) error {
+	server := &Server{Addr: addr, Factory: factory}
+	server.Logger = factory.CreateLogger("server")
+	return server.ListenAndServe()
+}

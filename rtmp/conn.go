@@ -69,17 +69,17 @@ func (conn *Conn) Serve() {
 	conn.Logger.Trace("simple handshake with client ok")
 
 	// pump message goroutine
-	go conn.PumpMessage()
+	go conn.pumpMessage()
 
 	// rtmp msg loop
-	if err := conn.MessageCycle(); err != nil {
+	if err := conn.messageCycle(); err != nil {
 		conn.Logger.Error("message cycle failed, err is %v", err)
 		return
 	}
 	conn.Logger.Trace("serve conn ok")
 }
 
-func (conn *Conn) MessageCycle() error {
+func (conn *Conn) messageCycle() error {
 	for {
 		select {
 			// when incoming message, process it.
@@ -102,7 +102,7 @@ func (conn *Conn) MessageCycle() error {
 	}
 }
 
-func (conn *Conn) PumpMessage() {
+func (conn *Conn) pumpMessage() {
 	defer func(){
 		// any error for each connection msg pump must be recover
 		if err := recover(); err != nil {

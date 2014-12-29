@@ -601,9 +601,3 @@ func (msg *RtmpMessage) String() string {
 		msg.Header.MessageType, msg.Header.Timestamp, msg.Header.PayloadLength)
 }
 
-func ListenAndServe(addr string, factory core.Factory) error {
-	server := &Server{Addr: addr, Factory: factory}
-	server.Logger = factory.CreateLogger("server")
-	return server.ListenAndServe()
-}
-
