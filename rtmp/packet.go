@@ -64,7 +64,7 @@ func DiscoveryPacket(msg *RtmpMessage, logger core.Logger) (b []byte, pkt RtmpPa
         switch command {
         case RTMP_AMF0_COMMAND_CONNECT:
             logger.Info("decode the AMF0/AMF3 command(connect vhost/app message).")
-            pkt = &RtmpConnectAppPacket{}
+            pkt = NewRtmpConnectAppPacket()
         }
     } else if header.IsUserControlMessage() {
     } else if header.IsWindowAckledgementSize() {
@@ -77,7 +77,7 @@ func DiscoveryPacket(msg *RtmpMessage, logger core.Logger) (b []byte, pkt RtmpPa
 
 // the rtmp packet, decoded from rtmp message payload.
 type RtmpPacket interface {
-    Decode(buffer *bytes.Buffer) error
+    Decode(buffer *bytes.Buffer, logger core.Logger) error
 }
 
 type RtmpCommonCallPacket struct {
@@ -91,7 +91,7 @@ type RtmpCommonCallPacket struct {
     TransactionId Amf0Number
 }
 
-func (ccp *RtmpCommonCallPacket) Decode(buffer *bytes.Buffer) (err error) {
+func (ccp *RtmpCommonCallPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
     if ccp.CommandName,err = ParseAmf0String(buffer); err != nil {
         return
     }
@@ -114,7 +114,7 @@ type RtmpConnectAppPacket struct {
     *       user should never alloc it again which will cause memory leak.
     * @remark, never be nil.
     */
-    CommandObject Amf0Object
+    CommandObject *Amf0Object
     /**
     * Any optional information
     * @remark, optional, init to and maybe nil.
@@ -122,10 +122,46 @@ type RtmpConnectAppPacket struct {
     Arguments *Amf0Object
 }
 
-func (cap *RtmpConnectAppPacket) Decode(buffer *bytes.Buffer) (err error) {
-    if err = cap.RtmpCommonCallPacket.Decode(buffer); err != nil {
+func NewRtmpConnectAppPacket() *RtmpConnectAppPacket {
+    return &RtmpConnectAppPacket{
+        CommandObject: NewAmf0Object(),
+        Arguments: nil,
+    }
+}
+
+func (cap *RtmpConnectAppPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = cap.RtmpCommonCallPacket.Decode(buffer, logger); err != nil {
         return
     }
+
+    // some client donot send id=1.0, so we only warn user if not match.
+    if cap.TransactionId != 1.0 {
+        logger.Warn("connect should be 1.0, actual is %v", cap.TransactionId)
+    }
+
+    if err = cap.CommandObject.Decode(buffer); err != nil {
+        logger.Error("amf0 decode connect command_object failed.")
+        return
+    }
+
+    if buffer.Len() > 0 {
+        // see: https://github.com/winlinvip/simple-rtmp-server/issues/186
+        // the args maybe any amf0, for instance, a string. we should drop if not object.
+        var any Amf0Any
+        if any,err = ParseAmf0Any(buffer); err != nil {
+            logger.Error("amf0 decode connect args failed")
+            return
+        }
+
+        // drop when not an AMF0 object.
+        if any.(*Amf0Object) == nil {
+            logger.Warn("drop the args, see: '4.1.1. connect'")
+        } else {
+            cap.Arguments = any.(*Amf0Object)
+        }
+    }
+
+    logger.Info("amf0 decode connect packet success")
 
     return
 }
@@ -151,6 +187,6 @@ type RtmpCallPacket struct {
     Arguments Amf0Any
 }
 
-func (cp *RtmpCallPacket) Decode(buffer *bytes.Buffer) (err error) {
+func (cp *RtmpCallPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
     return
 }

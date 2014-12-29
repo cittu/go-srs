@@ -72,8 +72,9 @@ var Amf0NullMarkerRead = errors.New("amf0 read null marker failed.")
 var Amf0NullMarkerCheck = errors.New("amf0 check null marker failed.")
 var Amf0UndefinedMarkerRead = errors.New("amf0 read undefined marker failed.")
 var Amf0UndefinedMarkerCheck = errors.New("amf0 check undefined marker failed.")
+var Amf0ObjectMarkerRead = errors.New("amf0 read object marker failed.")
+var Amf0ObjectMarkerCheck = errors.New("amf0 check object marker failed.")
 var Amf0ObjectEofRequired = errors.New("amf0 required object eof.")
-var Amf0ObjectEofRead = errors.New("amf0 read object eof eof.")
 
 type Amf0String string
 
@@ -189,36 +190,53 @@ func ParseAmf0Undefined(buffer *bytes.Buffer) (err error) {
 }
 
 type amf0Property struct {
-    name Amf0String
+    name string
     value Amf0Any
 }
 
 type Amf0Object struct {
-    properties map[Amf0String]Amf0Any
+    properties map[string]Amf0Any
     sorted_properties []*amf0Property
 }
 
+func NewAmf0Object() *Amf0Object {
+    return &Amf0Object {
+        properties: make(map[string]Amf0Any),
+        sorted_properties: make([]*amf0Property, 0),
+    }
+}
+
 func (obj *Amf0Object) Decode(buffer *bytes.Buffer) (err error) {
+    // marker
+    var marker byte
+    if marker,err = buffer.ReadByte(); err != nil {
+        err = Amf0ObjectMarkerRead
+        return
+    }
+
+    if marker != RTMP_AMF0_Object {
+        err = Amf0ObjectMarkerCheck
+        return
+    }
+
+    // object properties
     for buffer.Len() > 0 {
         // atleast an object EOF
         if buffer.Len() < 3 {
             return Amf0ObjectEofRequired
         }
-
         // peek the marker
-        marker := buffer.Bytes()[0]
+        marker := buffer.Bytes()[2]
 
         // read object EOF.
         if marker == RTMP_AMF0_ObjectEnd {
-            var data int16
-            if err = binary.Read(buffer, binary.BigEndian, &data); err != nil {
-                return Amf0ObjectEofRead
-            }
+            _,err = buffer.Read(make([]byte, 3))
             return
         }
 
-        var name Amf0String
-        if name,err = ParseAmf0String(buffer); err != nil {
+        // read an object property
+        var name string
+        if name,err = parseAmf0Utf8(buffer); err != nil {
             return
         }
 
@@ -235,7 +253,7 @@ func (obj *Amf0Object) Decode(buffer *bytes.Buffer) (err error) {
         obj.sorted_properties = append(obj.sorted_properties, prop)
     }
     return
-} 
+}
 
 type Amf0Any interface {}
 
@@ -249,11 +267,11 @@ func ParseAmf0Any(buffer *bytes.Buffer) (v Amf0Any, err error) {
 
     switch marker {
     case RTMP_AMF0_String:
-        return ParseAmf0String(buffer)
+        v,err = ParseAmf0String(buffer)
     case RTMP_AMF0_Number:
-        return ParseAmf0Number(buffer)
+        v,err = ParseAmf0Number(buffer)
     case RTMP_AMF0_Boolean:
-        return ParseAmf0Boolean(buffer)
+        v,err = ParseAmf0Boolean(buffer)
     case RTMP_AMF0_Null:
         v = Amf0Null(0)
         err = ParseAmf0Null(buffer)
@@ -261,7 +279,7 @@ func ParseAmf0Any(buffer *bytes.Buffer) (v Amf0Any, err error) {
         v = Amf0Undefined(0)
         err = ParseAmf0Undefined(buffer)
     case RTMP_AMF0_Object:
-        v = &Amf0Object{}
+        v = NewAmf0Object()
         err = v.(*Amf0Object).Decode(buffer)
     default:
         err = Amf0AnyMarkerCheck

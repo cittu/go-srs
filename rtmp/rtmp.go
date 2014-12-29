@@ -275,7 +275,7 @@ func (proto *Protocol) DecodeMessage(msg *RtmpMessage) (pkt RtmpPacket, err erro
 
 	proto.Logger.Info("disconvery rtmp packet ok")
 
-	if err = pkt.Decode(bytes.NewBuffer(b)); err != nil {
+	if err = pkt.Decode(bytes.NewBuffer(b), proto.Logger); err != nil {
 		return
 	}
 	proto.Logger.Info("decode rtmp packet ok")
