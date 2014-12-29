@@ -71,7 +71,7 @@ func (conn *Conn) Serve() {
 	conn.Logger.Trace("simple handshake with client ok")
 
 	// set stage to connect app.
-	conn.Stage = NewConnectStage(conn)
+	conn.Stage = conn.Server.Factory.NewConnectStage(conn)
 
 	// pump message goroutine
 	go conn.pumpMessage()

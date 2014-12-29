@@ -30,7 +30,7 @@ import (
 
 type Server struct {
 	Addr string
-	Factory core.Factory
+	Factory Factory
 	Logger core.Logger
 }
 
@@ -66,7 +66,7 @@ func (svr *Server) Serve(l net.Listener) error {
 	}
 }
 
-func ListenAndServe(addr string, factory core.Factory) error {
+func ListenAndServe(addr string, factory Factory) error {
 	server := &Server{Addr: addr, Factory: factory}
 	server.Logger = factory.CreateLogger("server")
 	return server.ListenAndServe()

@@ -24,38 +24,64 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 package server
 
 import (
-    "os"
-    "fmt"
-    "log"
     "github.com/winlinvip/go-srs/core"
     "github.com/winlinvip/go-srs/rtmp"
+    "errors"
 )
 
-var goroutineIdSeed int = 99
-func goroutineId() int {
-    goroutineIdSeed += 1
-    return goroutineIdSeed
+var FinalStage = errors.New("rtmp final stage")
+
+type commonStage struct {
+    logger core.Logger
+    conn *rtmp.Conn
 }
 
-type Factory struct {
+type connectStage struct {
+    commonStage
 }
 
-func (f *Factory) CreateLogger(name string) core.Logger {
-    v := &Logger{}
-    v.GoroutineId = goroutineId()
-    v.Flag = log.Ldate | log.Ltime | core.Linfo | core.Ltrace | core.Lwarn | core.Lerror
-    //v.Flag = log.Ldate | log.Ltime | core.Ltrace | core.Lwarn | core.Lerror
-    // TODO: FIXME: apply config file.
-    prefix := fmt.Sprintf("[%s][%d][%d] ", name, os.Getpid(), v.GoroutineId)
-    v.Logger = log.New(os.Stdout, prefix, v.Flag)
-    return v
+func (cs *connectStage) ConsumeMessage(msg *rtmp.RtmpMessage) (err error) {
+    // always expect the connect app message.
+    if !msg.Header.IsAmf0Command() && !msg.Header.IsAmf3Command() {
+        return
+    }
+
+    var pkt rtmp.RtmpPacket
+    if pkt,err = cs.conn.Protocol.DecodeMessage(msg); err != nil {
+        return
+    }
+
+    // got connect app packet
+    if pkt,ok := pkt.(*rtmp.RtmpConnectAppPacket); ok {
+        if err = cs.conn.Request.Parse(pkt.CommandObject, pkt.Arguments, cs.logger); err != nil {
+            cs.logger.Error("parse request from connect app packet failed.")
+            return
+        }
+        cs.logger.Info("rtmp connect app success")
+
+        // discovery vhost, resolve the vhost from config
+        // TODO: FIXME: implements it
+
+        // use next stage.
+        cs.conn.Stage = NewFinalStage(cs.conn)
+    }
+
+    return
 }
 
-func (f *Factory) NewConnectStage(conn *rtmp.Conn) rtmp.Stage {
-    return &connectStage{
+type finalStage struct {
+    commonStage
+}
+
+func NewFinalStage(conn *rtmp.Conn) rtmp.Stage {
+    return &finalStage{
         commonStage:commonStage{
             logger:conn.Logger,
             conn: conn,
         },
     }
+}
+
+func (fs *finalStage) ConsumeMessage(msg *rtmp.RtmpMessage) (err error) {
+    return FinalStage
 }
