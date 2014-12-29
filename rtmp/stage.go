@@ -77,6 +77,14 @@ func (cs *connectStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
         cs.logger.Trace("connect app, tcUrl=%v, pageUrl=%v, swfUrl=%v, schema=%v, vhost=%v, port=%v, app=%v, args=%v",
             req.TcUrl, req.PageUrl, req.SwfUrl, req.Schema, req.Vhost, req.Port, req.App, req.FormatArgs())
 
+        // show client identity
+        si := SrsInfo{}
+        si.Parse(req.Args)
+        if si.SrsPid > 0 {
+            cs.logger.Trace("edge-srs ip=%v, version=%v, pid=%v, id=%v",
+                si.SrsServerIp, si.SrsVersion, si.SrsPid, si.SrsId)
+        }
+
         // use next stage.
         cs.conn.Stage = NewFinalStage(cs.conn)
     }

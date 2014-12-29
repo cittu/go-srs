@@ -23,15 +23,30 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 package rtmp
 
-import (
-    "github.com/winlinvip/go-srs/core"
-)
+import "github.com/winlinvip/go-srs/protocol"
 
-type Context struct {
-    Id int
-    Logger core.Logger
+type SrsInfo struct {
+    SrsVersion string
+    SrsServerIp string
+    SrsPid int
+    SrsId int
 }
 
-func (ctx *Context) Log() core.Logger {
-    return ctx.Logger
+func (si *SrsInfo) Parse(args *protocol.Amf0Object) {
+    if args == nil {
+        return
+    }
+
+    if v,ok := args.GetString("srs_version"); ok {
+        si.SrsVersion = string(v)
+    }
+    if v,ok := args.GetString("srs_server_ip"); ok {
+        si.SrsServerIp = string(v)
+    }
+    if v,ok := args.GetNumber("srs_pid"); ok {
+        si.SrsPid = int(v)
+    }
+    if v,ok := args.GetNumber("srs_id"); ok {
+        si.SrsId = int(v)
+    }
 }
