@@ -33,3 +33,7 @@ const (
 	ListenRtmp = 1935
 )
 
+const (
+	SRS_CONSTS_RTMP_DEFAULT_PORT = 1935
+)
+

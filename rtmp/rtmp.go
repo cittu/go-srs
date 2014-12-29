@@ -239,11 +239,12 @@ const (
 	RTMP_AMF0_DATA_ON_METADATA = "onMetaData"
 )
 
-// the rtmp message header map to fmt.
-var mhSizes = []byte{11, 7, 3, 0}
-
 var RtmpChunkStart = errors.New("new chunk stream cid must be fresh")
 var RtmpPacketSize = errors.New("chunk size should not changed")
+var RtmpTcUrlNotString = errors.New("tcUrl of connect app must be string")
+
+// the rtmp message header map to fmt.
+var mhSizes = []byte{11, 7, 3, 0}
 
 type Protocol struct {
 	IoRw *net.TCPConn
@@ -898,6 +899,32 @@ type RtmpRequest struct {
 	Args *Amf0Object
 }
 
-func (req *RtmpRequest) Parse(cc *Amf0Object) (err error) {
+func (req *RtmpRequest) Parse(cc, args *Amf0Object, logger core.Logger) (err error) {
+	if v,ok := cc.GetString("tcUrl"); ok {
+		req.TcUrl = string(v)
+	} else {
+		logger.Error("invalid request, must specifies the tcUrl.")
+		return RtmpTcUrlNotString
+	}
+
+	if v,ok := cc.GetString("pageUrl"); ok {
+		req.PageUrl = string(v)
+	}
+	if v,ok := cc.GetString("swfUrl"); ok {
+		req.SwfUrl = string(v)
+	}
+	if v,ok := cc.GetNumber("objectEncoding"); ok {
+		req.ObjectEncoding = int(float64(v))
+	}
+
+	if args != nil {
+		req.Args = args
+		logger.Info("copy edge traverse to origin auth args.")
+	}
+	logger.Info("get connect app message params success.")
+
+	req.Schema,req.Host,req.Vhost,req.App,req.Port,req.Param,err = DiscoveryTcUrl(req.TcUrl, logger)
+	logger.Info("tcUrl=%v parsed", req.TcUrl)
+
 	return
 }

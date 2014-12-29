@@ -65,7 +65,7 @@ func (cs *connectStage) ConsumeMessage(msg *RtmpMessage) (err error) {
 
     // got connect app packet
     if pkt,ok := pkt.(*RtmpConnectAppPacket); ok {
-        if err = cs.conn.Request.Parse(pkt.CommandObject); err != nil {
+        if err = cs.conn.Request.Parse(pkt.CommandObject, pkt.Arguments, cs.logger); err != nil {
             cs.logger.Error("parse request from connect app packet failed.")
             return
         }

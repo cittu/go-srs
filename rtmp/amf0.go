@@ -206,6 +206,24 @@ func NewAmf0Object() *Amf0Object {
     }
 }
 
+func (obj *Amf0Object) GetString(name string) (v Amf0String, ok bool) {
+    var any Amf0Any
+    if any,ok = obj.properties[name]; !ok {
+        return
+    }
+    v,ok = any.(Amf0String)
+    return
+}
+
+func (obj *Amf0Object) GetNumber(name string) (v Amf0Number, ok bool) {
+    var any Amf0Any
+    if any,ok = obj.properties[name]; !ok {
+        return
+    }
+    v,ok = any.(Amf0Number)
+    return
+}
+
 func (obj *Amf0Object) Decode(buffer *bytes.Buffer) (err error) {
     // marker
     var marker byte
