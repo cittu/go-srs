@@ -30,7 +30,7 @@ import (
 	"encoding/json"
 	"runtime"
 	"github.com/winlinvip/go-srs/core"
-	"github.com/winlinvip/go-srs/rtmp"
+	"github.com/winlinvip/go-srs/protocol"
 	"github.com/winlinvip/go-srs/server"
 )
 
@@ -49,7 +49,7 @@ func main() {
 
 	logger.Trace("Rtmp listen at %v", core.ListenRtmp)
 	go func(){
-		if err := rtmp.ListenAndServe(fmt.Sprintf(":%d", core.ListenRtmp), factory); err != nil {
+		if err := protocol.ListenAndServe(fmt.Sprintf(":%d", core.ListenRtmp), factory); err != nil {
 			logger.Error("Serve RTMP failed, err is %v", err)
 			return
 		}

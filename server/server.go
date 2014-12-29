@@ -24,10 +24,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 package server
 
 import (
-    "github.com/winlinvip/go-srs/rtmp"
+    "github.com/winlinvip/go-srs/protocol"
 )
 
-func NewFactory() rtmp.Factory {
+func NewFactory() protocol.Factory {
     f := &Factory{}
     return f
 }

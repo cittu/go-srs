@@ -25,7 +25,7 @@ package server
 
 import (
     "github.com/winlinvip/go-srs/core"
-    "github.com/winlinvip/go-srs/rtmp"
+    "github.com/winlinvip/go-srs/protocol"
     "errors"
 )
 
@@ -33,14 +33,14 @@ var FinalStage = errors.New("rtmp final stage")
 
 type commonStage struct {
     logger core.Logger
-    conn *rtmp.Conn
+    conn *protocol.Conn
 }
 
 type connectStage struct {
     commonStage
 }
 
-func (cs *connectStage) ConsumeMessage(msg *rtmp.RtmpMessage) (err error) {
+func (cs *connectStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
     // always expect the connect app message.
     if !msg.Header.IsAmf0Command() && !msg.Header.IsAmf3Command() {
         return
@@ -52,7 +52,7 @@ func (cs *connectStage) ConsumeMessage(msg *rtmp.RtmpMessage) (err error) {
     }
 
     // got connect app packet
-    if pkt,ok := pkt.(*rtmp.RtmpConnectAppPacket); ok {
+    if pkt,ok := pkt.(*protocol.RtmpConnectAppPacket); ok {
         if err = cs.conn.Request.Parse(pkt.CommandObject, pkt.Arguments, cs.logger); err != nil {
             cs.logger.Error("parse request from connect app packet failed.")
             return
@@ -73,7 +73,7 @@ type finalStage struct {
     commonStage
 }
 
-func NewFinalStage(conn *rtmp.Conn) rtmp.Stage {
+func NewFinalStage(conn *protocol.Conn) protocol.Stage {
     return &finalStage{
         commonStage:commonStage{
             logger:conn.Logger,
@@ -82,6 +82,6 @@ func NewFinalStage(conn *rtmp.Conn) rtmp.Stage {
     }
 }
 
-func (fs *finalStage) ConsumeMessage(msg *rtmp.RtmpMessage) (err error) {
+func (fs *finalStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
     return FinalStage
 }

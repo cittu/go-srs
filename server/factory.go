@@ -28,7 +28,7 @@ import (
     "fmt"
     "log"
     "github.com/winlinvip/go-srs/core"
-    "github.com/winlinvip/go-srs/rtmp"
+    "github.com/winlinvip/go-srs/protocol"
 )
 
 var goroutineIdSeed int = 99
@@ -51,7 +51,7 @@ func (f *Factory) CreateLogger(name string) core.Logger {
     return v
 }
 
-func (f *Factory) NewConnectStage(conn *rtmp.Conn) rtmp.Stage {
+func (f *Factory) NewConnectStage(conn *protocol.Conn) protocol.Stage {
     return &connectStage{
         commonStage:commonStage{
             logger:conn.Logger,
