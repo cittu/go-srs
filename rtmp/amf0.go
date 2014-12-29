@@ -235,7 +235,7 @@ func (obj *Amf0Object) Decode(buffer *bytes.Buffer) (err error) {
         obj.sorted_properties = append(obj.sorted_properties, prop)
     }
     return
-}
+} 
 
 type Amf0Any interface {}
 
