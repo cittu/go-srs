@@ -856,3 +856,48 @@ func (msg *RtmpMessage) String() string {
 	return fmt.Sprintf("Message(%v,%v,%v)",
 		msg.Header.MessageType, msg.Header.Timestamp, msg.Header.PayloadLength)
 }
+
+/**
+* the original request from client.
+*/
+type RtmpRequest struct {
+	/**
+    * tcUrl: rtmp://request_vhost:port/app/stream
+    * support pass vhost in query string, such as:
+    *    rtmp://ip:port/app?vhost=request_vhost/stream
+    *    rtmp://ip:port/app...vhost...request_vhost/stream
+    */
+	TcUrl string
+	PageUrl string
+	SwfUrl string
+	ObjectEncoding int
+
+	// data discovery from request.
+	// discovery from tcUrl and play/publish.
+	Schema string
+	// the vhost in tcUrl.
+	Vhost string
+	// the host in tcUrl.
+	Host string
+	// the port in tcUrl.
+	Port int
+	// the app in tcUrl, without param.
+	App string
+	// the param in tcUrl(app).
+	Param string
+	// the stream in play/publish
+	Stream string
+	// for play live stream,
+	// used to specified the stop when exceed the duration.
+	// @see https://github.com/winlinvip/simple-rtmp-server/issues/45
+	// in ms.
+	Duration float64
+	// the token in the connect request,
+	// used for edge traverse to origin authentication,
+	// @see https://github.com/winlinvip/simple-rtmp-server/issues/104
+	Args *Amf0Object
+}
+
+func (req *RtmpRequest) Parse(cc *Amf0Object) (err error) {
+	return
+}

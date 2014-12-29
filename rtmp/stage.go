@@ -23,7 +23,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 package rtmp
 
-import "github.com/winlinvip/go-srs/core"
+import (
+    "github.com/winlinvip/go-srs/core"
+    "errors"
+)
+
+var FinalStage = errors.New("rtmp final stage")
 
 type Stage interface {
     ConsumeMessage(msg *RtmpMessage) error
@@ -31,19 +36,19 @@ type Stage interface {
 
 type commonStage struct {
     logger core.Logger
+    conn *Conn
 }
 
 type connectStage struct {
     commonStage
-    conn *Conn
 }
 
 func NewConnectStage(conn *Conn) Stage {
     return &connectStage{
         commonStage:commonStage{
             logger:conn.Logger,
+            conn: conn,
         },
-        conn: conn,
     }
 }
 
@@ -54,9 +59,37 @@ func (cs *connectStage) ConsumeMessage(msg *RtmpMessage) (err error) {
     }
 
     var pkt RtmpPacket
-    if pkt,err = cs.conn.Protocol.DecodeMessage(msg); err != nil || pkt == nil {
-        return err
+    if pkt,err = cs.conn.Protocol.DecodeMessage(msg); err != nil {
+        return
+    }
+
+    // got connect app packet
+    if pkt,ok := pkt.(*RtmpConnectAppPacket); ok {
+        if err = cs.conn.Request.Parse(pkt.CommandObject); err != nil {
+            cs.logger.Error("parse request from connect app packet failed.")
+            return
+        }
+
+        // use next stage.
+        cs.conn.Stage = NewFinalStage(cs.conn)
     }
 
     return
+}
+
+type finalStage struct {
+    commonStage
+}
+
+func NewFinalStage(conn *Conn) Stage {
+    return &finalStage{
+        commonStage:commonStage{
+            logger:conn.Logger,
+            conn: conn,
+        },
+    }
+}
+
+func (fs *finalStage) ConsumeMessage(msg *RtmpMessage) (err error) {
+    return FinalStage
 }

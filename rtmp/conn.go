@@ -41,6 +41,7 @@ type Conn struct {
 	OutChannel chan *RtmpMessage // the outgoing messages channel
 	Protocol *Protocol // the protocol stack.
 	Stage Stage // the stage of connection.
+	Request RtmpRequest // the request of client
 }
 
 func (conn *Conn) Serve() {
