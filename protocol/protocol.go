@@ -41,6 +41,7 @@ var RtmpRequestSchemaEmpty = errors.New("request schema is empty")
 var RtmpRequestVhostEmpty = errors.New("request vhost is empty")
 var RtmpRequestPortEmpty = errors.New("request port is empty")
 var RtmpRequestAppEmpty = errors.New("request app is empty")
+var RtmpMustBeCommonPacket = errors.New("packet to send must be common packet")
 
 /**
 * 6.1.2. Chunk Message Header
@@ -268,6 +269,21 @@ func NewProtocol(iorw *net.TCPConn, logger core.Logger) *Protocol {
 }
 
 func (proto *Protocol) EncodeMessage(pkt RtmpPacket, streamId int) (msg *RtmpMessage, err error) {
+	if pkt,ok := pkt.(rtmpCommonPacket); ok {
+		buffer := bytes.Buffer{}
+		if err = pkt.Encode(&buffer, proto.Logger); err != nil {
+			return
+		}
+
+		msg = NewRtmpMessage()
+		msg.Payload = buffer.Bytes()
+		msg.Header.PayloadLength = int32(len(msg.Payload))
+		msg.Header.MessageType = int8(pkt.MessageType())
+		msg.Header.StreamId = int32(streamId)
+		msg.Header.PerferCid = pkt.PerferCid()
+
+		return
+	}
 	return
 }
 
@@ -756,9 +772,10 @@ type ChunkStream struct {
 }
 
 func NewChunkStream(cid int) *ChunkStream {
-	return &ChunkStream{
-		Cid: cid,
-	}
+	v := &ChunkStream{}
+	v.Cid = cid
+	v.Header.PerferCid = cid
+	return v
 }
 
 func (cs *ChunkStream) String() string {
@@ -799,6 +816,12 @@ type RtmpMessageHeader struct {
     * @remark, we use 64bits for large time for jitter detect and hls.
     */
 	Timestamp int64
+	/**
+    * get the perfered cid(chunk stream id) which sendout over.
+    * set at decoding, and canbe used for directly send message,
+    * for example, dispatch to all connections.
+    */
+	PerferCid int
 }
 
 func (mh *RtmpMessageHeader) IsAudio() bool {

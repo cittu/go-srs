@@ -96,7 +96,7 @@ func DiscoveryPacket(msg *RtmpMessage, logger core.Logger) (b []byte, pkt RtmpPa
         // amf0 command message.
         // need to read the command name.
         var command Amf0String
-        if command,err = ParseAmf0String(bytes.NewBuffer(b)); err != nil {
+        if command,err = DecodeAmf0String(bytes.NewBuffer(b)); err != nil {
             logger.Error("decode AMF0/AMF3 command name failed.")
             return
         }
@@ -124,6 +124,14 @@ func DiscoveryPacket(msg *RtmpMessage, logger core.Logger) (b []byte, pkt RtmpPa
 // the rtmp packet, decoded from rtmp message payload.
 type RtmpPacket interface {
     Decode(buffer *bytes.Buffer, logger core.Logger) error
+    Encode(buffer *bytes.Buffer, logger core.Logger) error
+}
+
+// the common packet for protocol to send
+type rtmpCommonPacket interface {
+    RtmpPacket
+    MessageType() byte
+    PerferCid() int
 }
 
 type RtmpCommonCallPacket struct {
@@ -137,11 +145,21 @@ type RtmpCommonCallPacket struct {
     TransactionId Amf0Number
 }
 
-func (ccp *RtmpCommonCallPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
-    if ccp.CommandName,err = ParseAmf0String(buffer); err != nil {
+func (pkt *RtmpCommonCallPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if pkt.CommandName,err = DecodeAmf0String(buffer); err != nil {
         return
     }
-    if ccp.TransactionId,err = ParseAmf0Number(buffer); err != nil {
+    if pkt.TransactionId,err = DecodeAmf0Number(buffer); err != nil {
+        return
+    }
+    return
+}
+
+func (pkt *RtmpCommonCallPacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = EncodeAmf0String(buffer, pkt.CommandName); err != nil {
+        return
+    }
+    if err = EncodeAmf0Number(buffer, pkt.TransactionId); err != nil {
         return
     }
     return
@@ -175,17 +193,17 @@ func NewRtmpConnectAppPacket() RtmpPacket {
     }
 }
 
-func (cap *RtmpConnectAppPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
-    if err = cap.RtmpCommonCallPacket.Decode(buffer, logger); err != nil {
+func (pkt *RtmpConnectAppPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = pkt.RtmpCommonCallPacket.Decode(buffer, logger); err != nil {
         return
     }
 
     // some client donot send id=1.0, so we only warn user if not match.
-    if cap.TransactionId != 1.0 {
-        logger.Warn("connect should be 1.0, actual is %v", cap.TransactionId)
+    if pkt.TransactionId != 1.0 {
+        logger.Warn("connect should be 1.0, actual is %v", pkt.TransactionId)
     }
 
-    if err = cap.CommandObject.Decode(buffer); err != nil {
+    if err = pkt.CommandObject.Decode(buffer); err != nil {
         logger.Error("amf0 decode connect command_object failed.")
         return
     }
@@ -194,7 +212,7 @@ func (cap *RtmpConnectAppPacket) Decode(buffer *bytes.Buffer, logger core.Logger
         // see: https://github.com/winlinvip/simple-rtmp-server/issues/186
         // the args maybe any amf0, for instance, a string. we should drop if not object.
         var any Amf0Any
-        if any,err = ParseAmf0Any(buffer); err != nil {
+        if any,err = DecodeAmf0Any(buffer); err != nil {
             logger.Error("amf0 decode connect args failed")
             return
         }
@@ -203,12 +221,16 @@ func (cap *RtmpConnectAppPacket) Decode(buffer *bytes.Buffer, logger core.Logger
         if any.(*Amf0Object) == nil {
             logger.Warn("drop the args, see: '4.1.1. connect'")
         } else {
-            cap.Arguments = any.(*Amf0Object)
+            pkt.Arguments = any.(*Amf0Object)
         }
     }
 
     logger.Info("amf0 decode connect packet success")
 
+    return
+}
+
+func (pkt *RtmpConnectAppPacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
     return
 }
 
@@ -270,6 +292,32 @@ func NewRtmpConnectAppResPacket(objectEncoding int, serverIp string, srsId int) 
     return v
 }
 
+func (pkt *RtmpConnectAppResPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = pkt.RtmpCommonCallPacket.Decode(buffer, logger); err != nil {
+        return
+    }
+    if err = pkt.Props.Decode(buffer); err != nil {
+        return
+    }
+    if err = pkt.Info.Decode(buffer); err != nil {
+        return
+    }
+    return
+}
+
+func (pkt *RtmpConnectAppResPacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = pkt.RtmpCommonCallPacket.Encode(buffer, logger); err != nil {
+        return
+    }
+    if err = pkt.Props.Encode(buffer); err != nil {
+        return
+    }
+    if err = pkt.Info.Encode(buffer); err != nil {
+        return
+    }
+    return
+}
+
 /**
 * 4.1.2. Call
 * The call method of the NetConnection object runs remote procedure
@@ -291,7 +339,11 @@ type RtmpCallPacket struct {
     Arguments Amf0Any
 }
 
-func (cp *RtmpCallPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+func (pkt *RtmpCallPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    return
+}
+
+func (pkt *RtmpCallPacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
     return
 }
 
@@ -310,10 +362,14 @@ func NewRtmpSetWindowAckSizePacket(ackSize int) RtmpPacket {
     }
 }
 
-func (swasp *RtmpSetWindowAckSizePacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
-    if err = binary.Read(buffer, binary.BigEndian, &swasp.AckowledgementWindowSize); err != nil {
+func (pkt *RtmpSetWindowAckSizePacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = binary.Read(buffer, binary.BigEndian, &pkt.AckowledgementWindowSize); err != nil {
         return RtmpMsgSwaspRead
     }
+    return
+}
+
+func (pkt *RtmpSetWindowAckSizePacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
     return
 }
 
@@ -335,13 +391,17 @@ func NewRtmpSetPeerBandwidthPacket(bandwidth, _type int) RtmpPacket {
     }
 }
 
-func (spbp *RtmpSetPeerBandwidthPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
-    if err = binary.Read(buffer, binary.BigEndian, &spbp.Bandwidth); err != nil {
+func (pkt *RtmpSetPeerBandwidthPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = binary.Read(buffer, binary.BigEndian, &pkt.Bandwidth); err != nil {
         return RtmpMsgSpbpRead
     }
-    if err = binary.Read(buffer, binary.BigEndian, &spbp.Type); err != nil {
+    if err = binary.Read(buffer, binary.BigEndian, &pkt.Type); err != nil {
         return RtmpMsgSpbpRead
     }
+    return
+}
+
+func (pkt *RtmpSetPeerBandwidthPacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
     return
 }
 
@@ -363,12 +423,16 @@ func NewRtmpOnBWDonePacket() RtmpPacket {
     return v
 }
 
-func (spbp *RtmpOnBWDonePacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
-    if err = spbp.RtmpCommonCallPacket.Decode(buffer, logger); err != nil {
+func (pkt *RtmpOnBWDonePacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = pkt.RtmpCommonCallPacket.Decode(buffer, logger); err != nil {
         return
     }
-    if err = ParseAmf0Null(buffer); err != nil {
+    if err = DecodeAmf0Null(buffer); err != nil {
         return
     }
+    return
+}
+
+func (pkt *RtmpOnBWDonePacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
     return
 }
