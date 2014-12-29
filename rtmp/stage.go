@@ -53,7 +53,8 @@ func (cs *connectStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
 
     // got connect app packet
     if pkt,ok := pkt.(*protocol.RtmpConnectAppPacket); ok {
-        if err = cs.conn.Request.Parse(pkt.CommandObject, pkt.Arguments, cs.logger); err != nil {
+        req := &cs.conn.Request
+        if err = req.Parse(pkt.CommandObject, pkt.Arguments, cs.logger); err != nil {
             cs.logger.Error("parse request from connect app packet failed.")
             return
         }
@@ -61,6 +62,20 @@ func (cs *connectStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
 
         // discovery vhost, resolve the vhost from config
         // TODO: FIXME: implements it
+
+        // check the request paramaters.
+        if err = req.Validate(cs.logger); err != nil {
+            return
+        }
+        cs.logger.Info("discovery app success. schema=%v, vhost=%v, port=%v, app=%v",
+            req.Schema, req.Vhost, req.Port, req.App)
+
+        // check vhost
+        // TODO: FIXME: implements it
+        cs.logger.Info("check vhost success.")
+
+        cs.logger.Trace("connect app, tcUrl=%v, pageUrl=%v, swfUrl=%v, schema=%v, vhost=%v, port=%v, app=%v, args=%v",
+            req.TcUrl, req.PageUrl, req.SwfUrl, req.Schema, req.Vhost, req.Port, req.App, req.FormatArgs())
 
         // use next stage.
         cs.conn.Stage = NewFinalStage(cs.conn)

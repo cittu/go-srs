@@ -34,6 +34,14 @@ import (
 	"math"
 )
 
+var RtmpChunkStart = errors.New("new chunk stream cid must be fresh")
+var RtmpPacketSize = errors.New("chunk size should not changed")
+var RtmpTcUrlNotString = errors.New("tcUrl of connect app must be string")
+var RtmpRequestSchemaEmpty = errors.New("request schema is empty")
+var RtmpRequestVhostEmpty = errors.New("request vhost is empty")
+var RtmpRequestPortEmpty = errors.New("request port is empty")
+var RtmpRequestAppEmpty = errors.New("request app is empty")
+
 /**
 * 6.1.2. Chunk Message Header
 * There are four different formats for the chunk message header,
@@ -238,10 +246,6 @@ const (
 	RTMP_AMF0_DATA_SET_DATAFRAME = "@setDataFrame"
 	RTMP_AMF0_DATA_ON_METADATA = "onMetaData"
 )
-
-var RtmpChunkStart = errors.New("new chunk stream cid must be fresh")
-var RtmpPacketSize = errors.New("chunk size should not changed")
-var RtmpTcUrlNotString = errors.New("tcUrl of connect app must be string")
 
 // the rtmp message header map to fmt.
 var mhSizes = []byte{11, 7, 3, 0}
@@ -899,6 +903,14 @@ type RtmpRequest struct {
 	Args *Amf0Object
 }
 
+func (req *RtmpRequest) FormatArgs() string {
+	if req.Args != nil {
+		return "(obj)"
+	} else {
+		return "null"
+	}
+}
+
 func (req *RtmpRequest) Parse(cc, args *Amf0Object, logger core.Logger) (err error) {
 	if v,ok := cc.GetString("tcUrl"); ok {
 		req.TcUrl = string(v)
@@ -925,6 +937,29 @@ func (req *RtmpRequest) Parse(cc, args *Amf0Object, logger core.Logger) (err err
 
 	req.Schema,req.Host,req.Vhost,req.App,req.Port,req.Param,err = DiscoveryTcUrl(req.TcUrl, logger)
 	logger.Info("tcUrl=%v parsed", req.TcUrl)
+
+	return
+}
+
+func (req *RtmpRequest) Validate(logger core.Logger) (err error) {
+	if req.Schema == "" {
+		logger.Error("request schema is empty")
+		return RtmpRequestSchemaEmpty
+	}
+	if req.Vhost == "" {
+		logger.Error("request vhost is empty")
+		return RtmpRequestVhostEmpty
+	}
+	if req.Port <= 0 {
+		logger.Error("request port is not positive")
+		return RtmpRequestPortEmpty
+	}
+	if req.App == "" {
+		logger.Error("request app is empty")
+		return RtmpRequestAppEmpty
+	}
+
+	logger.Info("request validate ok")
 
 	return
 }
