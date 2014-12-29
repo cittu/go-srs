@@ -40,6 +40,7 @@ type Conn struct {
 	InChannel chan *RtmpMessage // the incoming messages channel
 	OutChannel chan *RtmpMessage // the outgoing messages channel
 	Protocol *Protocol // the protocol stack.
+	Stage Stage // the stage of connection.
 }
 
 func (conn *Conn) Serve() {
@@ -68,6 +69,9 @@ func (conn *Conn) Serve() {
 	}
 	conn.Logger.Trace("simple handshake with client ok")
 
+	// set stage to connect app.
+	conn.Stage = NewConnectStage(conn)
+
 	// pump message goroutine
 	go conn.pumpMessage()
 
@@ -79,21 +83,23 @@ func (conn *Conn) Serve() {
 	conn.Logger.Trace("serve conn ok")
 }
 
-func (conn *Conn) messageCycle() error {
+func (conn *Conn) messageCycle() (err error) {
 	for {
 		select {
 			// when incoming message, process it.
 		case msg,ok := <- conn.InChannel:
 			if !ok {
-				return nil
+				return
 			}
-			conn.Logger.Info("received msg %v", msg)
-			// TODO: FIXME: to process the msg.
+			conn.Logger.Info("consume received msg %v", msg)
+			if err = conn.Stage.ConsumeMessage(msg); err != nil {
+				return
+			}
 			continue
 			// when got msg to send, send it immeidately.
 		case msg,ok := <- conn.OutChannel:
 			if !ok {
-				return nil
+				return
 			}
 			conn.Logger.Info("send msg %v", msg)
 			// TODO: FIXME: to sendout the msg.
@@ -152,6 +158,9 @@ func NewConn(svr *Server, conn *net.TCPConn) *Conn {
 
 	// initialize the protocol stack.
 	v.Protocol = NewProtocol(conn, v.Logger)
+
+	// nil stage for handshake.
+	v.Stage = nil
 
 	return v
 }

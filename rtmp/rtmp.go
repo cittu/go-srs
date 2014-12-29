@@ -34,24 +34,209 @@ import (
 	"math"
 )
 
+/**
+* 6.1.2. Chunk Message Header
+* There are four different formats for the chunk message header,
+* selected by the "fmt" field in the chunk basic header.
+*/
 const (
+	// 6.1.2.1. Type 0
+	// Chunks of Type 0 are 11 bytes long. This type MUST be used at the
+	// start of a chunk stream, and whenever the stream timestamp goes
+	// backward (e.g., because of a backward seek).
 	RTMP_FMT_TYPE0 = iota
+	// 6.1.2.2. Type 1
+	// Chunks of Type 1 are 7 bytes long. The message stream ID is not
+	// included; this chunk takes the same stream ID as the preceding chunk.
+	// Streams with variable-sized messages (for example, many video
+	// formats) SHOULD use this format for the first chunk of each new
+	// message after the first.
 	RTMP_FMT_TYPE1
+	// 6.1.2.3. Type 2
+	// Chunks of Type 2 are 3 bytes long. Neither the stream ID nor the
+	// message length is included; this chunk has the same stream ID and
+	// message length as the preceding chunk. Streams with constant-sized
+	// messages (for example, some audio and data formats) SHOULD use this
+	// format for the first chunk of each message after the first.
 	RTMP_FMT_TYPE2
+	// 6.1.2.4. Type 3
+	// Chunks of Type 3 have no header. Stream ID, message length and
+	// timestamp delta are not present; chunks of this type take values from
+	// the preceding chunk. When a single message is split into chunks, all
+	// chunks of a message except the first one, SHOULD use this type. Refer
+	// to example 2 in section 6.2.2. Stream consisting of messages of
+	// exactly the same size, stream ID and spacing in time SHOULD use this
+	// type for all chunks after chunk of Type 2. Refer to example 1 in
+	// section 6.2.1. If the delta between the first message and the second
+	// message is same as the time stamp of first message, then chunk of
+	// type 3 would immediately follow the chunk of type 0 as there is no
+	// need for a chunk of type 2 to register the delta. If Type 3 chunk
+	// follows a Type 0 chunk, then timestamp delta for this Type 3 chunk is
+	// the same as the timestamp of Type 0 chunk.
 	RTMP_FMT_TYPE3
 )
+
 const (
+	/**
+    * the chunk stream id used for some under-layer message,
+    * for example, the PC(protocol control) message.
+    */
 	RTMP_CID_ProtocolControl = 2 + iota
+	/**
+    * the AMF0/AMF3 command message, invoke method and return the result, over NetConnection.
+    * generally use 0x03.
+    */
 	RTMP_CID_OverConnection
+	/**
+    * the AMF0/AMF3 command message, invoke method and return the result, over NetConnection,
+    * the midst state(we guess).
+    * rarely used, e.g. onStatus(NetStream.Play.Reset).
+    */
 	RTMP_CID_OverConnection2
+	/**
+    * the stream message(amf0/amf3), over NetStream.
+    * generally use 0x05.
+    */
 	RTMP_CID_OverStream
+	/**
+    * the stream message(amf0/amf3), over NetStream, the midst state(we guess).
+    * rarely used, e.g. play("mp4:mystram.f4v")
+    */
 	RTMP_CID_Video
+	/**
+    * the stream message(video), over NetStream
+    * generally use 0x06.
+    */
 	RTMP_CID_Audio
+	/**
+    * the stream message(audio), over NetStream.
+    * generally use 0x07.
+    */
 	RTMP_CID_OverStream2
 )
+
 const (
+	/**
+    * 6.1. Chunk Format
+    * Extended timestamp: 0 or 4 bytes
+    * This field MUST be sent when the normal timsestamp is set to
+    * 0xffffff, it MUST NOT be sent if the normal timestamp is set to
+    * anything else. So for values less than 0xffffff the normal
+    * timestamp field SHOULD be used in which case the extended timestamp
+    * MUST NOT be present. For values greater than or equal to 0xffffff
+    * the normal timestamp field MUST NOT be used and MUST be set to
+    * 0xffffff and the extended timestamp MUST be sent.
+    */
 	RTMP_EXTENDED_TIMESTAMP = 0xFFFFFF
+	// 6. Chunking, RTMP protocol default chunk size.
 	SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE = 128
+)
+
+/**
+5. Protocol Control Messages
+RTMP reserves message type IDs 1-7 for protocol control messages.
+These messages contain information needed by the RTM Chunk Stream
+protocol or RTMP itself. Protocol messages with IDs 1 & 2 are
+reserved for usage with RTM Chunk Stream protocol. Protocol messages
+with IDs 3-6 are reserved for usage of RTMP. Protocol message with ID
+7 is used between edge server and origin server.
+*/
+const (
+	RTMP_MSG_SetChunkSize = 1 + iota
+	RTMP_MSG_AbortMessage
+	RTMP_MSG_Acknowledgement
+	RTMP_MSG_UserControlMessage
+	RTMP_MSG_WindowAcknowledgementSize
+	RTMP_MSG_SetPeerBandwidth
+	RTMP_MSG_EdgeAndOriginServerCommand
+)
+
+const (
+	/**
+    3. Types of messages
+    The server and the client send messages over the network to
+    communicate with each other. The messages can be of any type which
+    includes audio messages, video messages, command messages, shared
+    object messages, data messages, and user control messages.
+    3.1. Command message
+    Command messages carry the AMF-encoded commands between the client
+    and the server. These messages have been assigned message type value
+    of 20 for AMF0 encoding and message type value of 17 for AMF3
+    encoding. These messages are sent to perform some operations like
+    connect, createStream, publish, play, pause on the peer. Command
+    messages like onstatus, result etc. are used to inform the sender
+    about the status of the requested commands. A command message
+    consists of command name, transaction ID, and command object that
+    contains related parameters. A client or a server can request Remote
+    Procedure Calls (RPC) over streams that are communicated using the
+    command messages to the peer.
+    */
+	RTMP_MSG_AMF3CommandMessage = 17 // 0x11
+	RTMP_MSG_AMF0CommandMessage = 20 // 0x14
+	/**
+    3.2. Data message
+    The client or the server sends this message to send Metadata or any
+    user data to the peer. Metadata includes details about the
+    data(audio, video etc.) like creation time, duration, theme and so
+    on. These messages have been assigned message type value of 18 for
+    AMF0 and message type value of 15 for AMF3.
+    */
+	RTMP_MSG_AMF0DataMessage = 18 // 0x12
+	RTMP_MSG_AMF3DataMessage = 15 // 0x0F
+	/**
+    3.3. Shared object message
+    A shared object is a Flash object (a collection of name value pairs)
+    that are in synchronization across multiple clients, instances, and
+    so on. The message types kMsgContainer=19 for AMF0 and
+    kMsgContainerEx=16 for AMF3 are reserved for shared object events.
+    Each message can contain multiple events.
+    */
+	RTMP_MSG_AMF3SharedObject = 16 // 0x10
+	RTMP_MSG_AMF0SharedObject = 19 // 0x13
+	/**
+    3.4. Audio message
+    The client or the server sends this message to send audio data to the
+    peer. The message type value of 8 is reserved for audio messages.
+    */
+	RTMP_MSG_AudioMessage = 8 // 0x08
+	/* *
+    3.5. Video message
+    The client or the server sends this message to send video data to the
+    peer. The message type value of 9 is reserved for video messages.
+    These messages are large and can delay the sending of other type of
+    messages. To avoid such a situation, the video message is assigned
+    the lowest priority.
+    */
+	RTMP_MSG_VideoMessage = 9 // 0x09
+	/**
+    3.6. Aggregate message
+    An aggregate message is a single message that contains a list of submessages.
+    The message type value of 22 is reserved for aggregate
+    messages.
+    */
+	RTMP_MSG_AggregateMessage = 22 // 0x16
+)
+
+/**
+* amf0 command message, command name macros
+*/
+const (
+	RTMP_AMF0_COMMAND_CONNECT = "connect"
+	RTMP_AMF0_COMMAND_CREATE_STREAM = "createStream"
+	RTMP_AMF0_COMMAND_CLOSE_STREAM = "closeStream"
+	RTMP_AMF0_COMMAND_PLAY = "play"
+	RTMP_AMF0_COMMAND_PAUSE = "pause"
+	RTMP_AMF0_COMMAND_ON_BW_DONE = "onBWDone"
+	RTMP_AMF0_COMMAND_ON_STATUS = "onStatus"
+	RTMP_AMF0_COMMAND_RESULT = "_result"
+	RTMP_AMF0_COMMAND_ERROR = "_error"
+	RTMP_AMF0_COMMAND_RELEASE_STREAM = "releaseStream"
+	RTMP_AMF0_COMMAND_FC_PUBLISH = "FCPublish"
+	RTMP_AMF0_COMMAND_UNPUBLISH = "FCUnpublish"
+	RTMP_AMF0_COMMAND_PUBLISH = "publish"
+	RTMP_AMF0_DATA_SAMPLE_ACCESS = "|RtmpSampleAccess"
+	RTMP_AMF0_DATA_SET_DATAFRAME = "@setDataFrame"
+	RTMP_AMF0_DATA_ON_METADATA = "onMetaData"
 )
 
 // the rtmp message header map to fmt.
@@ -75,6 +260,27 @@ func NewProtocol(iorw *net.TCPConn, logger core.Logger) *Protocol {
 	}
 	v.ChunkStreams = map[int]*ChunkStream{}
 	return v
+}
+
+func (proto *Protocol) DecodeMessage(msg *RtmpMessage) (pkt RtmpPacket, err error) {
+	var b []byte
+	if b,pkt,err = DiscoveryPacket(msg, proto.Logger); err != nil {
+		return
+	}
+
+	if pkt == nil {
+		proto.Logger.Info("null packet")
+		return
+	}
+
+	proto.Logger.Info("disconvery rtmp packet ok")
+
+	if err = pkt.Decode(bytes.NewBuffer(b)); err != nil {
+		return
+	}
+	proto.Logger.Info("decode rtmp packet ok")
+
+	return
 }
 
 func (proto *Protocol) PumpMessage() (msg *RtmpMessage, err error) {
@@ -532,6 +738,7 @@ func (proto *Protocol) readMessagePayload(chunk *ChunkStream, extsBuffer *bytes.
 	return
 }
 
+// the chunk stream
 type ChunkStream struct {
 	Cid int
 	Header RtmpMessageHeader
@@ -549,6 +756,7 @@ func (cs *ChunkStream) String() string {
 	return fmt.Sprintf("%v", cs.Cid)
 }
 
+// the message header
 type RtmpMessageHeader struct {
 	/**
     * 3bytes.
@@ -584,6 +792,54 @@ type RtmpMessageHeader struct {
 	Timestamp int64
 }
 
+func (mh *RtmpMessageHeader) IsAudio() bool {
+	return mh.MessageType == RTMP_MSG_AudioMessage
+}
+
+func (mh *RtmpMessageHeader) IsVideo() bool {
+	return mh.MessageType == RTMP_MSG_VideoMessage
+}
+
+func (mh *RtmpMessageHeader) IsAmf0Command() bool {
+	return mh.MessageType == RTMP_MSG_AMF0CommandMessage
+}
+
+func (mh *RtmpMessageHeader) IsAmf0Data() bool {
+	return mh.MessageType == RTMP_MSG_AMF0DataMessage
+}
+
+func (mh *RtmpMessageHeader) IsAmf3Command() bool {
+	return mh.MessageType == RTMP_MSG_AMF3CommandMessage
+}
+
+func (mh *RtmpMessageHeader) IsAmf3Data() bool {
+	return mh.MessageType == RTMP_MSG_AMF3DataMessage
+}
+
+func (mh *RtmpMessageHeader) IsWindowAckledgementSize() bool {
+	return mh.MessageType == RTMP_MSG_WindowAcknowledgementSize
+}
+
+func (mh *RtmpMessageHeader) IsAckledgement() bool {
+	return mh.MessageType == RTMP_MSG_Acknowledgement
+}
+
+func (mh *RtmpMessageHeader) IsSetChunkSize() bool {
+	return mh.MessageType == RTMP_MSG_SetChunkSize
+}
+
+func (mh *RtmpMessageHeader) IsUserControlMessage() bool {
+	return mh.MessageType == RTMP_MSG_UserControlMessage
+}
+
+func (mh *RtmpMessageHeader) IsSetPeerBandwidth() bool {
+	return mh.MessageType == RTMP_MSG_SetPeerBandwidth
+}
+
+func (mh *RtmpMessageHeader) IsAggregate() bool {
+	return mh.MessageType == RTMP_MSG_AggregateMessage
+}
+
 // the rtmp protocol level message packet
 type RtmpMessage struct {
 	Header RtmpMessageHeader
@@ -600,4 +856,3 @@ func (msg *RtmpMessage) String() string {
 	return fmt.Sprintf("Message(%v,%v,%v)",
 		msg.Header.MessageType, msg.Header.Timestamp, msg.Header.PayloadLength)
 }
-

@@ -21,31 +21,42 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-package server
+package rtmp
 
-import (
-    "os"
-    "fmt"
-    "log"
-    "github.com/winlinvip/go-srs/core"
-)
+import "github.com/winlinvip/go-srs/core"
 
-var goroutineIdSeed int = 99
-func goroutineId() int {
-    goroutineIdSeed += 1
-    return goroutineIdSeed
+type Stage interface {
+    ConsumeMessage(msg *RtmpMessage) error
 }
 
-type Factory struct {
+type commonStage struct {
+    logger core.Logger
 }
 
-func (f *Factory) CreateLogger(name string) core.Logger {
-    v := &Logger{}
-    v.GoroutineId = goroutineId()
-    v.Flag = log.Ldate | log.Ltime | core.Linfo | core.Ltrace | core.Lwarn | core.Lerror
-    //v.Flag = log.Ldate | log.Ltime | core.Ltrace | core.Lwarn | core.Lerror
-    // TODO: FIXME: apply config file.
-    prefix := fmt.Sprintf("[%s][%d][%d] ", name, os.Getpid(), v.GoroutineId)
-    v.Logger = log.New(os.Stdout, prefix, v.Flag)
-    return v
+type connectStage struct {
+    commonStage
+    conn *Conn
+}
+
+func NewConnectStage(conn *Conn) Stage {
+    return &connectStage{
+        commonStage:commonStage{
+            logger:conn.Logger,
+        },
+        conn: conn,
+    }
+}
+
+func (cs *connectStage) ConsumeMessage(msg *RtmpMessage) (err error) {
+    // always expect the connect app message.
+    if !msg.Header.IsAmf0Command() && !msg.Header.IsAmf3Command() {
+        return
+    }
+
+    var pkt RtmpPacket
+    if pkt,err = cs.conn.Protocol.DecodeMessage(msg); err != nil || pkt == nil {
+        return err
+    }
+
+    return
 }
