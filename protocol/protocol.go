@@ -284,6 +284,8 @@ func (proto *Protocol) EncodeMessage(pkt RtmpPacket, streamId int) (msg *RtmpMes
 
 		return
 	}
+	
+	err = RtmpMustBeCommonPacket
 	return
 }
 
