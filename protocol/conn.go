@@ -47,6 +47,7 @@ type Conn struct {
 	Protocol *Protocol // the protocol stack.
 	Stage Stage // the stage of connection.
 	Request RtmpRequest // the request of client
+	StreamId int // current using stream id.
 }
 
 func (conn *Conn) Serve() {
@@ -218,6 +219,14 @@ func (conn *Conn) SetPeerBandwidth(bandwidth, _type int) (err error) {
 	return conn.EnqueueOutgoingMessage(msg)
 }
 
+func (conn *Conn) ResponseCreateStream(transactionId float64, streamId int) (err error) {
+	var msg *RtmpMessage
+	if msg,err = conn.Protocol.EncodeMessage(NewRtmpCreateStreamResPacket(transactionId, float64(streamId)), 0); err != nil {
+		return
+	}
+	return conn.EnqueueOutgoingMessage(msg)
+}
+
 func (conn *Conn) OnBwDone() (err error) {
 	var msg *RtmpMessage
 	if msg,err = conn.Protocol.EncodeMessage(NewRtmpOnBWDonePacket(), 0); err != nil {
@@ -239,6 +248,7 @@ func NewConn(svr *Server, conn *net.TCPConn) *Conn {
 		Server: svr,
 		IoRw: conn,
 		Rand: rand.New(rand.NewSource(time.Now().UnixNano())),
+		StreamId: SRS_DEFAULT_SID,
 	}
 
 	// the srs id

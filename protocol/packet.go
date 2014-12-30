@@ -111,6 +111,9 @@ func DiscoveryPacket(msg *RtmpMessage, logger core.Logger) (b []byte, pkt RtmpPa
         case RTMP_AMF0_COMMAND_CONNECT:
             logger.Info("decode the AMF0/AMF3 command(connect vhost/app message).")
             pkt = NewRtmpConnectAppPacket()
+        case RTMP_AMF0_COMMAND_CREATE_STREAM:
+            logger.Info("decode the AMF0/AMF3 command(createStream message).")
+            pkt = NewRtmpCreateStreamPacket()
         }
     } else if header.IsUserControlMessage() {
     } else if header.IsWindowAckledgementSize() {
@@ -514,7 +517,7 @@ func (pkt *RtmpOnBWDonePacket) Encode(buffer *bytes.Buffer, logger core.Logger) 
     if err = pkt.rtmpCommonCallPacket.Encode(buffer, logger); err != nil {
         return
     }
-    if err = EncodeAmf0Any(buffer, pkt.Args); err != nil {
+    if err = EncodeAmf0Null(buffer); err != nil {
         return
     }
     return
@@ -525,5 +528,114 @@ func (pkt *RtmpOnBWDonePacket) MessageType() byte {
 }
 
 func (pkt *RtmpOnBWDonePacket) PerferCid() int {
+    return RTMP_CID_OverConnection
+}
+
+/**
+* 4.1.3. createStream
+* The client sends this command to the server to create a logical
+* channel for message communication The publishing of audio, video, and
+* metadata is carried out over stream channel created using the
+* createStream command.
+*/
+type RtmpCreateStreamPacket struct {
+    rtmpCommonCallPacket
+    /**
+    * If there exists any command info this is set, else this is set to null type.
+    * @remark, never be NULL, an AMF0 null instance.
+    */
+    CommandObject Amf0Null
+}
+
+func NewRtmpCreateStreamPacket() RtmpPacket {
+    v := &RtmpCreateStreamPacket{}
+    v.CommandName = Amf0String(RTMP_AMF0_COMMAND_CREATE_STREAM)
+    v.TransactionId = Amf0Number(2.0)
+    return v
+}
+
+func (pkt *RtmpCreateStreamPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = pkt.rtmpCommonCallPacket.Decode(buffer, logger); err != nil {
+        return
+    }
+    if err = DecodeAmf0Null(buffer); err != nil {
+        return
+    }
+    return
+}
+
+func (pkt *RtmpCreateStreamPacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = pkt.rtmpCommonCallPacket.Encode(buffer, logger); err != nil {
+        return
+    }
+    if err = EncodeAmf0Null(buffer); err != nil {
+        return
+    }
+    return
+}
+
+func (pkt *RtmpCreateStreamPacket) MessageType() byte {
+    return RTMP_MSG_AMF0CommandMessage
+}
+
+func (pkt *RtmpCreateStreamPacket) PerferCid() int {
+    return RTMP_CID_OverConnection
+}
+
+/**
+* response for SrsCreateStreamPacket.
+*/
+type RtmpCreateStreamResPacket struct {
+    rtmpCommonCallPacket
+    /**
+    * If there exists any command info this is set, else this is set to null type.
+    * @remark, never be NULL, an AMF0 null instance.
+    */
+    CommandObject Amf0Null
+    /**
+    * The return value is either a stream ID or an error information object.
+    */
+    StreamId Amf0Number
+}
+
+func NewRtmpCreateStreamResPacket(transactionId, streamId float64) RtmpPacket {
+    v := &RtmpCreateStreamResPacket{}
+    v.CommandName = Amf0String(RTMP_AMF0_COMMAND_RESULT)
+    v.TransactionId = Amf0Number(transactionId)
+    v.StreamId = Amf0Number(streamId)
+    return v
+}
+
+func (pkt *RtmpCreateStreamResPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = pkt.rtmpCommonCallPacket.Decode(buffer, logger); err != nil {
+        return
+    }
+    if err = DecodeAmf0Null(buffer); err != nil {
+        return
+    }
+    if pkt.StreamId,err = DecodeAmf0Number(buffer); err != nil {
+        return
+    }
+    return
+}
+
+func (pkt *RtmpCreateStreamResPacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = pkt.rtmpCommonCallPacket.Encode(buffer, logger); err != nil {
+        return
+    }
+    if err = EncodeAmf0Null(buffer); err != nil {
+        return
+    }
+    if err = EncodeAmf0Number(buffer, pkt.StreamId); err != nil {
+        return
+    }
+    return
+}
+
+func (pkt *RtmpCreateStreamResPacket) MessageType() byte {
+    return RTMP_MSG_AMF0CommandMessage
+}
+
+func (pkt *RtmpCreateStreamResPacket) PerferCid() int {
     return RTMP_CID_OverConnection
 }
