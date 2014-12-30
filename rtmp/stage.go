@@ -374,13 +374,13 @@ func (stage *fmlePublishStartStage) ConsumeMessage(msg *protocol.RtmpMessage) (e
     case *protocol.RtmpPublishPacket:
         // publish
         // publish response onFCPublish(NetStream.Publish.Start)
-        if err = stage.conn.ResponsePublish(float64(pkt.TransactionId)); err != nil {
+        if err = stage.conn.ResponsePublish(float64(pkt.TransactionId), stage.conn.StreamId); err != nil {
             logger.Error("send onFCPublish(NetStream.Publish.Start) message failed")
             return
         }
         logger.Info("send onFCPublish(NetStream.Publish.Start) message success.")
         // publish response onStatus(NetStream.Publish.Start)
-        if err = stage.conn.OnStatus(); err != nil {
+        if err = stage.conn.OnStatus(stage.conn.StreamId); err != nil {
             logger.Error("send onStatus(NetStream.Publish.Start) message failed")
             return
         }
