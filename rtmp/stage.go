@@ -42,6 +42,29 @@ const (
     SrsRtmpConnFlashPublish
 )
 
+/**
+* Helper functions for stage.
+ */
+func identifyIgnoreMessage(msg *protocol.RtmpMessage, logger core.Logger) bool {
+    h := &msg.Header
+
+    if h.IsAckledgement() || h.IsSetChunkSize() || h.IsWindowAckledgementSize() || h.IsUserControlMessage() {
+        logger.Info("ignore the ack/setChunkSize/windowAck/userControl msg")
+        return true
+    }
+
+    if !h.IsAmf0Command() && !h.IsAmf3Command() {
+        logger.Trace("identify ignore messages except AMF0/AMF3 command message, type=%d", h.MessageType)
+        return true
+    }
+
+    return false
+}
+
+/**
+* the first stage, connect vhost/app.
+* @remark this stage only enter one time.
+ */
 type connectStage struct {
     conn *protocol.Conn
 }
@@ -137,6 +160,10 @@ func (stage *connectStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error)
     return
 }
 
+/**
+* the second stage, identify the client.
+* @remark this stage can re-enter
+ */
 type identifyClientStage struct {
     conn *protocol.Conn
 }
@@ -208,6 +235,10 @@ func (stage *identifyClientStage) ConsumeMessage(msg *protocol.RtmpMessage) (err
     return
 }
 
+/**
+* the sub stage of identify client, the create stream stage, maybe publish or play.
+* @remark this stage can re-enter
+ */
 type identifyClientCreateStreamStage struct {
     conn *protocol.Conn
 }
@@ -255,6 +286,10 @@ func (stage *identifyClientCreateStreamStage) ConsumeMessage(msg *protocol.RtmpM
     return
 }
 
+/**
+* the stage of service client as playing stream.
+* @remark this stage can re-enter
+ */
 type playStage struct {
     conn *protocol.Conn
     clientType int
@@ -267,6 +302,10 @@ func (stage *playStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
     return
 }
 
+/**
+* the stage of service client as FMLE publishing stream.
+* @remark this stage can re-enter
+ */
 type fmlePublishStage struct {
     conn *protocol.Conn
     clientType int
@@ -278,6 +317,10 @@ func (stage *fmlePublishStage) ConsumeMessage(msg *protocol.RtmpMessage) (err er
     return
 }
 
+/**
+* the stage of service client as flash publishing stream.
+* @remark this stage can re-enter
+ */
 type flashPublishStage struct {
     conn *protocol.Conn
     clientType int
@@ -289,28 +332,12 @@ func (stage *flashPublishStage) ConsumeMessage(msg *protocol.RtmpMessage) (err e
     return
 }
 
+/**
+* the last stage close connection.
+ */
 type finalStage struct {
 }
 
 func (stage *finalStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
     return FinalStage
-}
-
-/**
-* Helper functions for stage.
- */
-func identifyIgnoreMessage(msg *protocol.RtmpMessage, logger core.Logger) bool {
-    h := &msg.Header
-
-    if h.IsAckledgement() || h.IsSetChunkSize() || h.IsWindowAckledgementSize() || h.IsUserControlMessage() {
-        logger.Info("ignore the ack/setChunkSize/windowAck/userControl msg")
-        return true
-    }
-
-    if !h.IsAmf0Command() && !h.IsAmf3Command() {
-        logger.Trace("identify ignore messages except AMF0/AMF3 command message, type=%d", h.MessageType)
-        return true
-    }
-
-    return false
 }
