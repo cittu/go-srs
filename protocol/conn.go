@@ -320,11 +320,25 @@ func (conn *Conn) ResponsePublish(transactionId float64) (err error) {
 
 	obj := NewAmf0Object()
 	pkt.Arguments = obj
-	obj.Set(StatusCode, StatusCodePublishStart)
-	obj.Set(StatusDescription, "Started publising stream.")
+	obj.Set(StatusCode, Amf0String(StatusCodePublishStart))
+	obj.Set(StatusDescription, Amf0String("Started publising stream."))
 
 	var msg *RtmpMessage
-	if msg,err = conn.Protocol.EncodeMessage(pkt, 0); err != nil {
+	if msg,err = conn.Protocol.EncodeMessage(pkt, conn.StreamId); err != nil {
+		return
+	}
+	return conn.EnqueueOutgoingMessage(msg)
+}
+
+func (conn *Conn) OnStatus() (err error) {
+	pkt := NewRtmpOnStatusCallPacket().(*RtmpOnStatusCallPacket)
+	pkt.Data.Set(StatusLevel, Amf0String(StatusLevelStatus))
+	pkt.Data.Set(StatusCode, Amf0String(StatusCodePublishStart))
+	pkt.Data.Set(StatusDescription, Amf0String("Started publishing stream."))
+	pkt.Data.Set(StatusClientId, Amf0String(RTMP_SIG_CLIENT_ID))
+
+	var msg *RtmpMessage
+	if msg,err = conn.Protocol.EncodeMessage(pkt, conn.StreamId); err != nil {
 		return
 	}
 	return conn.EnqueueOutgoingMessage(msg)

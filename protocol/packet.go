@@ -912,3 +912,64 @@ func (pkt *RtmpPublishPacket) MessageType() byte {
 func (pkt *RtmpPublishPacket) PerferCid() int {
     return RTMP_CID_OverStream
 }
+
+/**
+* onStatus command, AMF0 Call
+* @remark, user must set the stream_id by SrsCommonMessage.set_packet().
+*/
+type RtmpOnStatusCallPacket struct {
+    rtmpCommonCallPacket
+    /**
+    * Command information does not exist. Set to null type.
+    * @remark, never be NULL, an AMF0 null instance.
+    */
+    CommandObject Amf0Null
+    /**
+    * Name-value pairs that describe the response from the server.
+    * ‘code’,‘level’, ‘description’ are names of few among such information.
+    * @remark, never be NULL, an AMF0 object instance.
+    */
+    Data *Amf0Object
+}
+
+func NewRtmpOnStatusCallPacket() RtmpPacket {
+    v := &RtmpOnStatusCallPacket{}
+    v.CommandName = Amf0String(RTMP_AMF0_COMMAND_ON_STATUS)
+    v.TransactionId = Amf0Number(0.0)
+    v.Data = NewAmf0Object()
+    return v
+}
+
+func (pkt *RtmpOnStatusCallPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = pkt.rtmpCommonCallPacket.Decode(buffer, logger); err != nil {
+        return
+    }
+    if err = DecodeAmf0Null(buffer); err != nil {
+        return
+    }
+    if err = pkt.Data.Decode(buffer); err != nil {
+        return
+    }
+    return
+}
+
+func (pkt *RtmpOnStatusCallPacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = pkt.rtmpCommonCallPacket.Encode(buffer, logger); err != nil {
+        return
+    }
+    if err = EncodeAmf0Null(buffer); err != nil {
+        return
+    }
+    if err = pkt.Data.Encode(buffer); err != nil {
+        return
+    }
+    return
+}
+
+func (pkt *RtmpOnStatusCallPacket) MessageType() byte {
+    return RTMP_MSG_AMF0CommandMessage
+}
+
+func (pkt *RtmpOnStatusCallPacket) PerferCid() int {
+    return RTMP_CID_OverStream
+}

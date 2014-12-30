@@ -357,12 +357,14 @@ func (stage *fmlePublishStartStage) ConsumeMessage(msg *protocol.RtmpMessage) (e
 
     switch pkt := pkt.(type) {
     case *protocol.RtmpFcPublishPacket:
+        // FCPublish
         if err = stage.conn.ResponseFcPublish(float64(pkt.TransactionId)); err != nil {
             logger.Error("send FCPublish response message failed.")
             return
         }
         logger.Info("send FCPublish response message success.")
     case *protocol.RtmpCreateStreamPacket:
+        // createStream
         stage.conn.StreamId++
         if err = stage.conn.ResponseCreateStream(float64(pkt.TransactionId), stage.conn.StreamId); err != nil {
             logger.Error("send createStream response message failed.")
@@ -370,11 +372,19 @@ func (stage *fmlePublishStartStage) ConsumeMessage(msg *protocol.RtmpMessage) (e
         }
         logger.Info("send createStream response message success.")
     case *protocol.RtmpPublishPacket:
-        if err = stage.conn.ResponseFcPublish(float64(pkt.TransactionId)); err != nil {
+        // publish
+        // publish response onFCPublish(NetStream.Publish.Start)
+        if err = stage.conn.ResponsePublish(float64(pkt.TransactionId)); err != nil {
             logger.Error("send onFCPublish(NetStream.Publish.Start) message failed")
             return
         }
         logger.Info("send onFCPublish(NetStream.Publish.Start) message success.")
+        // publish response onStatus(NetStream.Publish.Start)
+        if err = stage.conn.OnStatus(); err != nil {
+            logger.Error("send onStatus(NetStream.Publish.Start) message failed")
+            return
+        }
+        logger.Info("send onStatus(NetStream.Publish.Start) message success.")
     default:
         logger.Info("fmle publish start stage ignore msg %v", msg)
     }
