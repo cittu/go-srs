@@ -33,16 +33,6 @@ import (
 var FinalStage = errors.New("rtmp final stage")
 
 /**
-* the rtmp client type.
-*/
-const (
-    SrsRtmpConnUnknown = iota
-    SrsRtmpConnPlay
-    SrsRtmpConnFMLEPublish
-    SrsRtmpConnFlashPublish
-)
-
-/**
 * Helper functions for stage.
  */
 func identifyIgnoreMessage(msg *protocol.RtmpMessage, logger core.Logger) bool {
@@ -184,6 +174,7 @@ func (stage *identifyClientStage) ConsumeMessage(msg *protocol.RtmpMessage) (err
     switch pkt := pkt.(type) {
     case *protocol.RtmpCreateStreamPacket:
         logger.Info("identify client by create stream, play or flash publish.")
+        stage.conn.StreamId++
         if err = stage.conn.ResponseCreateStream(float64(pkt.TransactionId), stage.conn.StreamId); err != nil {
             logger.Error("send createStream response message failed.")
             return
@@ -200,14 +191,13 @@ func (stage *identifyClientStage) ConsumeMessage(msg *protocol.RtmpMessage) (err
         // use next stage.
         stage.conn.Stage = &playStage{
             conn: stage.conn,
-            clientType: SrsRtmpConnPlay,
             streamName: string(pkt.StreamName),
             duration: float64(pkt.Duration),
         }
         return
-    case *protocol.RtmpFMLEStartPacket:
+    case *protocol.RtmpReleaseStreamPacket:
         logger.Info("identify client by releaseStream, fmle publish.")
-        if err = stage.conn.ResponseFMLEStart(float64(pkt.TransactionId)); err != nil {
+        if err = stage.conn.ResponseReleaseStream(float64(pkt.TransactionId)); err != nil {
             logger.Error("send releaseStream response message failed.")
             return
         }
@@ -216,7 +206,6 @@ func (stage *identifyClientStage) ConsumeMessage(msg *protocol.RtmpMessage) (err
         // use next stage.
         stage.conn.Stage = &fmlePublishStage{
             conn: stage.conn,
-            clientType: SrsRtmpConnFMLEPublish,
             streamName: string(pkt.StreamName),
         }
         return
@@ -263,7 +252,6 @@ func (stage *identifyClientCreateStreamStage) ConsumeMessage(msg *protocol.RtmpM
         // use next stage.
         stage.conn.Stage = &playStage{
             conn: stage.conn,
-            clientType: SrsRtmpConnPlay,
             streamName: string(pkt.StreamName),
             duration: float64(pkt.Duration),
         }
@@ -274,7 +262,6 @@ func (stage *identifyClientCreateStreamStage) ConsumeMessage(msg *protocol.RtmpM
         // use next stage.
         stage.conn.Stage = &flashPublishStage{
             conn: stage.conn,
-            clientType: SrsRtmpConnFlashPublish,
             streamName: string(pkt.StreamName),
         }
         return
@@ -292,12 +279,17 @@ func (stage *identifyClientCreateStreamStage) ConsumeMessage(msg *protocol.RtmpM
  */
 type playStage struct {
     conn *protocol.Conn
-    clientType int
     streamName string
     duration float64
 }
 
 func (stage *playStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
+    logger := stage.conn.Logger
+    logger.Trace("client identified, type=Play, stream_name=%s, duration=%.2f", stage.streamName, stage.duration)
+
+    // set chunk size to larger.
+    // TODO: FIXME: implements it.
+
     // TODO: FIXME: implements it.
     return
 }
@@ -308,12 +300,85 @@ func (stage *playStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
  */
 type fmlePublishStage struct {
     conn *protocol.Conn
-    clientType int
     streamName string
 }
 
 func (stage *fmlePublishStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
+    logger := stage.conn.Logger
+    req := &stage.conn.Request
+    logger.Trace("client identified, type=publish(FMLEPublish), stream_name=%s", stage.streamName)
+
+    // set chunk size to larger.
     // TODO: FIXME: implements it.
+
+    // find a source to serve.
+    var source *RtmpSource
+    if source,err = FindSource(req, logger); err != nil {
+        return
+    }
+    core.AssertNotNil(source)
+
+    // check ASAP, to fail it faster if invalid.
+    // TODO: FIXME: implements it.
+
+    enabledCache := false
+    vhostIsEdge := false
+    logger.Trace("source url=%s, ip=%s, cache=%v, is_edge=%v, source_id=%d[%d]",
+        req.StreamUrl(), stage.conn.IoRw.RemoteAddr().String(), enabledCache, vhostIsEdge, source.SrsId, source.SrsId)
+    source.Cache(enabledCache)
+
+    // source->on_edge_start_publish
+    // TODO: FIXME: implements it.
+
+    stage.conn.Stage = &fmlePublishStartStage{
+        conn: stage.conn,
+        source: source,
+    }
+    // current stage is merged into next stage.
+    return stage.conn.Stage.ConsumeMessage(msg)
+}
+
+/**
+* the last stage close connection.
+ */
+type fmlePublishStartStage struct {
+    conn *protocol.Conn
+    source *RtmpSource
+}
+
+func (stage *fmlePublishStartStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
+    logger := stage.conn.Logger
+
+    var pkt protocol.RtmpPacket
+    if pkt,err = stage.conn.Protocol.DecodeMessage(msg); err != nil {
+        logger.Error("identify decode message failed")
+        return
+    }
+
+    switch pkt := pkt.(type) {
+    case *protocol.RtmpFcPublishPacket:
+        if err = stage.conn.ResponseFcPublish(float64(pkt.TransactionId)); err != nil {
+            logger.Error("send FCPublish response message failed.")
+            return
+        }
+        logger.Info("send FCPublish response message success.")
+    case *protocol.RtmpCreateStreamPacket:
+        stage.conn.StreamId++
+        if err = stage.conn.ResponseCreateStream(float64(pkt.TransactionId), stage.conn.StreamId); err != nil {
+            logger.Error("send createStream response message failed.")
+            return
+        }
+        logger.Info("send createStream response message success.")
+    case *protocol.RtmpPublishPacket:
+        if err = stage.conn.ResponseFcPublish(float64(pkt.TransactionId)); err != nil {
+            logger.Error("send onFCPublish(NetStream.Publish.Start) message failed")
+            return
+        }
+        logger.Info("send onFCPublish(NetStream.Publish.Start) message success.")
+    default:
+        logger.Info("fmle publish start stage ignore msg %v", msg)
+    }
+
     return
 }
 
@@ -323,11 +388,16 @@ func (stage *fmlePublishStage) ConsumeMessage(msg *protocol.RtmpMessage) (err er
  */
 type flashPublishStage struct {
     conn *protocol.Conn
-    clientType int
     streamName string
 }
 
 func (stage *flashPublishStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
+    logger := stage.conn.Logger
+    logger.Trace("client identified, type=publish(FlashPublish), stream_name=%s", stage.streamName)
+
+    // set chunk size to larger.
+    // TODO: FIXME: implements it.
+
     // TODO: FIXME: implements it.
     return
 }

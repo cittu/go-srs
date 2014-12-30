@@ -117,7 +117,10 @@ func DiscoveryPacket(msg *RtmpMessage, logger core.Logger) (b []byte, pkt RtmpPa
             pkt = NewRtmpPlayPacket()
         case RTMP_AMF0_COMMAND_RELEASE_STREAM:
             logger.Info("decode the AMF0/AMF3 command(FMLE releaseStream message).")
-            pkt = NewRtmpFMLEStartPacket()
+            pkt = NewRtmpReleaseStreamPacket()
+        case RTMP_AMF0_COMMAND_FC_PUBLISH:
+            logger.Info("decode the AMF0/AMF3 command(FMLE FCPublish message).")
+            pkt = NewRtmpFcPublishPacket()
         case RTMP_AMF0_COMMAND_PUBLISH:
             logger.Info("decode the AMF0/AMF3 command(publish message).")
             pkt = NewRtmpPublishPacket()
@@ -352,7 +355,7 @@ type RtmpCallPacket struct {
     Arguments Amf0Any
 }
 
-func NewRtmpCallPacket() *RtmpCallPacket {
+func NewRtmpCallPacket() RtmpPacket {
     return &RtmpCallPacket{}
 }
 
@@ -360,11 +363,15 @@ func (pkt *RtmpCallPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err
     if err = pkt.rtmpCommonCallPacket.Decode(buffer, logger); err != nil {
         return
     }
-    if pkt.CommandObject,err = DecodeAmf0Any(buffer); err != nil {
-        return
+    if buffer.Len() > 0 {
+        if pkt.CommandObject, err = DecodeAmf0Any(buffer); err != nil {
+            return
+        }
     }
-    if pkt.Arguments,err = DecodeAmf0Any(buffer); err != nil {
-        return
+    if buffer.Len() > 0 {
+        if pkt.Arguments,err = DecodeAmf0Any(buffer); err != nil {
+            return
+        }
     }
     return
 }
@@ -373,11 +380,15 @@ func (pkt *RtmpCallPacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err
     if err = pkt.rtmpCommonCallPacket.Encode(buffer, logger); err != nil {
         return
     }
-    if err = EncodeAmf0Any(buffer, pkt.CommandObject); err != nil {
-        return
+    if pkt.CommandObject != nil {
+        if err = EncodeAmf0Any(buffer, pkt.CommandObject); err != nil {
+            return
+        }
     }
-    if err = EncodeAmf0Any(buffer, pkt.Arguments); err != nil {
-        return
+    if pkt.Arguments != nil {
+        if err = EncodeAmf0Any(buffer, pkt.Arguments); err != nil {
+            return
+        }
     }
     return
 }
@@ -512,52 +523,6 @@ func (pkt *RtmpSetChunkSizePacket) MessageType() byte {
 
 func (pkt *RtmpSetChunkSizePacket) PerferCid() int {
     return RTMP_CID_ProtocolControl
-}
-
-/**
-* when bandwidth test done, notice client.
-*/
-type RtmpOnBWDonePacket struct {
-    rtmpCommonCallPacket
-    /**
-    * Command information does not exist. Set to null type.
-    * @remark, never be NULL, an AMF0 null instance.
-    */
-    Args Amf0Null
-}
-
-func NewRtmpOnBWDonePacket() RtmpPacket {
-    v := &RtmpOnBWDonePacket{}
-    v.CommandName = Amf0String(RTMP_AMF0_COMMAND_ON_BW_DONE)
-    return v
-}
-
-func (pkt *RtmpOnBWDonePacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
-    if err = pkt.rtmpCommonCallPacket.Decode(buffer, logger); err != nil {
-        return
-    }
-    if err = DecodeAmf0Null(buffer); err != nil {
-        return
-    }
-    return
-}
-
-func (pkt *RtmpOnBWDonePacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
-    if err = pkt.rtmpCommonCallPacket.Encode(buffer, logger); err != nil {
-        return
-    }
-    if err = EncodeAmf0Null(buffer); err != nil {
-        return
-    }
-    return
-}
-
-func (pkt *RtmpOnBWDonePacket) MessageType() byte {
-    return RTMP_MSG_AMF0CommandMessage
-}
-
-func (pkt *RtmpOnBWDonePacket) PerferCid() int {
-    return RTMP_CID_OverConnection
 }
 
 /**
@@ -795,9 +760,9 @@ func (pkt *RtmpPlayPacket) PerferCid() int {
 }
 
 /**
-* FMLE start publish: ReleaseStream/PublishStream
+* FMLE start publish: ReleaseStream
 */
-type RtmpFMLEStartPacket struct {
+type RtmpReleaseStreamPacket struct {
     rtmpCommonCallPacket
     /**
     * If there exists any command info this is set, else this is set to null type.
@@ -810,14 +775,14 @@ type RtmpFMLEStartPacket struct {
     StreamName Amf0String
 }
 
-func NewRtmpFMLEStartPacket() RtmpPacket {
-    v := &RtmpFMLEStartPacket{}
+func NewRtmpReleaseStreamPacket() RtmpPacket {
+    v := &RtmpReleaseStreamPacket{}
     v.CommandName = Amf0String(RTMP_AMF0_COMMAND_RELEASE_STREAM)
     v.TransactionId = Amf0Number(0.0)
     return v
 }
 
-func (pkt *RtmpFMLEStartPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+func (pkt *RtmpReleaseStreamPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
     if err = pkt.rtmpCommonCallPacket.Decode(buffer, logger); err != nil {
         return
     }
@@ -830,7 +795,7 @@ func (pkt *RtmpFMLEStartPacket) Decode(buffer *bytes.Buffer, logger core.Logger)
     return
 }
 
-func (pkt *RtmpFMLEStartPacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+func (pkt *RtmpReleaseStreamPacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
     if err = pkt.rtmpCommonCallPacket.Encode(buffer, logger); err != nil {
         return
     }
@@ -843,70 +808,26 @@ func (pkt *RtmpFMLEStartPacket) Encode(buffer *bytes.Buffer, logger core.Logger)
     return
 }
 
-func (pkt *RtmpFMLEStartPacket) MessageType() byte {
+func (pkt *RtmpReleaseStreamPacket) MessageType() byte {
     return RTMP_MSG_AMF0CommandMessage
 }
 
-func (pkt *RtmpFMLEStartPacket) PerferCid() int {
+func (pkt *RtmpReleaseStreamPacket) PerferCid() int {
     return RTMP_CID_OverConnection
 }
 
 /**
-* response for SrsFMLEStartPacket.
+* FMLE start publish: PublishStream
 */
-type RtmpFMLEStartResPacket struct {
-    rtmpCommonCallPacket
-    /**
-    * If there exists any command info this is set, else this is set to null type.
-    * @remark, never be NULL, an AMF0 null instance.
-    */
-    CommandObject Amf0Null
-    /**
-    * the optional args, set to undefined.
-    * @remark, never be NULL, an AMF0 undefined instance.
-    */
-    Args Amf0Undefined
+type RtmpFcPublishPacket struct {
+    RtmpReleaseStreamPacket
 }
 
-func NewRtmpFMLEStartResPacket(transactionId float64) RtmpPacket {
-    v := &RtmpFMLEStartResPacket{}
-    v.CommandName = Amf0String(RTMP_AMF0_COMMAND_RESULT)
-    v.TransactionId = Amf0Number(transactionId)
+func NewRtmpFcPublishPacket() RtmpPacket {
+    v := &RtmpFcPublishPacket{}
+    v.CommandName = Amf0String(RTMP_AMF0_COMMAND_FC_PUBLISH)
+    v.TransactionId = Amf0Number(0.0)
     return v
-}
-
-func (pkt *RtmpFMLEStartResPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
-    if err = pkt.rtmpCommonCallPacket.Decode(buffer, logger); err != nil {
-        return
-    }
-    if err = DecodeAmf0Null(buffer); err != nil {
-        return
-    }
-    if err = DecodeAmf0Undefined(buffer); err != nil {
-        return
-    }
-    return
-}
-
-func (pkt *RtmpFMLEStartResPacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
-    if err = pkt.rtmpCommonCallPacket.Encode(buffer, logger); err != nil {
-        return
-    }
-    if err = EncodeAmf0Null(buffer); err != nil {
-        return
-    }
-    if err = EncodeAmf0Undefined(buffer); err != nil {
-        return
-    }
-    return
-}
-
-func (pkt *RtmpFMLEStartResPacket) MessageType() byte {
-    return RTMP_MSG_AMF0CommandMessage
-}
-
-func (pkt *RtmpFMLEStartResPacket) PerferCid() int {
-    return RTMP_CID_OverConnection
 }
 
 /**

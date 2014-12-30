@@ -1114,12 +1114,20 @@ type RtmpRequest struct {
 	Args *Amf0Object
 }
 
+func (req *RtmpRequest) StreamUrl() string {
+	return fmt.Sprintf("%s/%s/%s", req.Vhost, req.App, req.Stream)
+}
+
 func (req *RtmpRequest) FormatArgs() string {
 	if req.Args != nil {
 		return "(obj)"
 	} else {
 		return "null"
 	}
+}
+
+func (req *RtmpRequest) UpdateAuth(r *RtmpRequest) {
+	// TODO: FIXME: implements it.
 }
 
 func (req *RtmpRequest) Parse(cc, args *Amf0Object, logger core.Logger) (err error) {

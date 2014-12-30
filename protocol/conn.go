@@ -230,8 +230,12 @@ func (conn *Conn) ResponseCreateStream(transactionId float64, streamId int) (err
 }
 
 func (conn *Conn) OnBwDone() (err error) {
+	pkt := NewRtmpCallPacket().(*RtmpCallPacket)
+	pkt.CommandName = Amf0String(RTMP_AMF0_COMMAND_ON_BW_DONE)
+	pkt.CommandObject = Amf0Null(0)
+
 	var msg *RtmpMessage
-	if msg,err = conn.Protocol.EncodeMessage(NewRtmpOnBWDonePacket(), 0); err != nil {
+	if msg,err = conn.Protocol.EncodeMessage(pkt, 0); err != nil {
 		return
 	}
 	return conn.EnqueueOutgoingMessage(msg)
@@ -280,9 +284,47 @@ func (conn *Conn) ResponseConnectApp(objectEncoding int, serverIp string) (err e
 	return conn.EnqueueOutgoingMessage(msg)
 }
 
-func (conn *Conn) ResponseFMLEStart(transactionId float64) (err error) {
+func (conn *Conn) ResponseReleaseStream(transactionId float64) (err error) {
+	pkt := NewRtmpCallPacket().(*RtmpCallPacket)
+	pkt.CommandName = Amf0String(RTMP_AMF0_COMMAND_RESULT)
+	pkt.TransactionId = Amf0Number(transactionId)
+	pkt.CommandObject = Amf0Null(0)
+	pkt.Arguments = Amf0Undefined(0)
+
 	var msg *RtmpMessage
-	if msg,err = conn.Protocol.EncodeMessage(NewRtmpFMLEStartResPacket(transactionId), 0); err != nil {
+	if msg,err = conn.Protocol.EncodeMessage(pkt, 0); err != nil {
+		return
+	}
+	return conn.EnqueueOutgoingMessage(msg)
+}
+
+func (conn *Conn) ResponseFcPublish(transactionId float64) (err error) {
+	pkt := NewRtmpCallPacket().(*RtmpCallPacket)
+	pkt.CommandName = Amf0String(RTMP_AMF0_COMMAND_RESULT)
+	pkt.TransactionId = Amf0Number(transactionId)
+	pkt.CommandObject = Amf0Null(0)
+	pkt.Arguments = Amf0Undefined(0)
+
+	var msg *RtmpMessage
+	if msg,err = conn.Protocol.EncodeMessage(pkt, 0); err != nil {
+		return
+	}
+	return conn.EnqueueOutgoingMessage(msg)
+}
+
+func (conn *Conn) ResponsePublish(transactionId float64) (err error) {
+	pkt := NewRtmpCallPacket().(*RtmpCallPacket)
+	pkt.CommandName = Amf0String(RTMP_AMF0_COMMAND_ON_FC_PUBLISH)
+	pkt.TransactionId = Amf0Number(0.0)
+	pkt.CommandObject = Amf0Null(0)
+
+	obj := NewAmf0Object()
+	pkt.Arguments = obj
+	obj.Set(StatusCode, StatusCodePublishStart)
+	obj.Set(StatusDescription, "Started publising stream.")
+
+	var msg *RtmpMessage
+	if msg,err = conn.Protocol.EncodeMessage(pkt, 0); err != nil {
 		return
 	}
 	return conn.EnqueueOutgoingMessage(msg)
@@ -293,7 +335,7 @@ func NewConn(svr *Server, conn *net.TCPConn) *Conn {
 		Server: svr,
 		IoRw: conn,
 		Rand: rand.New(rand.NewSource(time.Now().UnixNano())),
-		StreamId: SRS_DEFAULT_SID,
+		StreamId: SRS_DEFAULT_SID - 1, // we always increase it when create stream.
 	}
 
 	// the srs id
