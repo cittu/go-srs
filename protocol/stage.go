@@ -25,4 +25,5 @@ package protocol
 
 type Stage interface {
     ConsumeMessage(msg *RtmpMessage) error
+    Cleanup() // do cleanup for stage.
 }

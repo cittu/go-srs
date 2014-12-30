@@ -59,6 +59,9 @@ type connectStage struct {
     conn *protocol.Conn
 }
 
+func (stage *connectStage) Cleanup() {
+}
+
 func (stage *connectStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
     logger := stage.conn.Logger
 
@@ -158,6 +161,9 @@ type identifyClientStage struct {
     conn *protocol.Conn
 }
 
+func (stage *identifyClientStage) Cleanup() {
+}
+
 func (stage *identifyClientStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
     logger := stage.conn.Logger
 
@@ -232,6 +238,9 @@ type identifyClientCreateStreamStage struct {
     conn *protocol.Conn
 }
 
+func (stage *identifyClientCreateStreamStage) Cleanup() {
+}
+
 func (stage *identifyClientCreateStreamStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
     logger := stage.conn.Logger
 
@@ -283,6 +292,9 @@ type playStage struct {
     duration float64
 }
 
+func (stage *playStage) Cleanup() {
+}
+
 func (stage *playStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
     logger := stage.conn.Logger
     logger.Trace("client identified, type=Play, stream_name=%s, duration=%.2f", stage.streamName, stage.duration)
@@ -301,6 +313,9 @@ func (stage *playStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
 type fmlePublishStage struct {
     conn *protocol.Conn
     streamName string
+}
+
+func (stage *fmlePublishStage) Cleanup() {
 }
 
 func (stage *fmlePublishStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
@@ -346,6 +361,9 @@ type fmlePublishStartStage struct {
     source *RtmpSource
 }
 
+func (stage *fmlePublishStartStage) Cleanup() {
+}
+
 func (stage *fmlePublishStartStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
     logger := stage.conn.Logger
 
@@ -386,11 +404,15 @@ func (stage *fmlePublishStartStage) ConsumeMessage(msg *protocol.RtmpMessage) (e
         }
         logger.Info("send onStatus(NetStream.Publish.Start) message success.")
 
-        logger.Info("start to publish stream success")
-        stage.conn.Stage = &fmlePublishingStage{
+        // enter publishing state.
+        nextStage := &fmlePublishingStage{
             conn: stage.conn,
             source: stage.source,
         }
+        if err = nextStage.Initialize(); err != nil {
+            return
+        }
+        stage.conn.Stage = nextStage
     default:
         logger.Info("fmle publish start stage ignore msg %v", msg)
     }
@@ -404,6 +426,16 @@ func (stage *fmlePublishStartStage) ConsumeMessage(msg *protocol.RtmpMessage) (e
 type fmlePublishingStage struct {
     conn *protocol.Conn
     source *RtmpSource
+}
+
+func (stage *fmlePublishingStage) Initialize() (err error) {
+    stage.conn.Logger.Info("start to publishing stream")
+    stage.source.OnPublish(stage.conn.Logger, stage.conn.SrsId)
+    return
+}
+
+func (stage *fmlePublishingStage) Cleanup() {
+    stage.source.OnUnPublish()
 }
 
 func (stage *fmlePublishingStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
@@ -439,6 +471,9 @@ type flashPublishStage struct {
     streamName string
 }
 
+func (stage *flashPublishStage) Cleanup() {
+}
+
 func (stage *flashPublishStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
     logger := stage.conn.Logger
     logger.Trace("client identified, type=publish(FlashPublish), stream_name=%s", stage.streamName)
@@ -454,6 +489,9 @@ func (stage *flashPublishStage) ConsumeMessage(msg *protocol.RtmpMessage) (err e
 * the last stage close connection.
  */
 type finalStage struct {
+}
+
+func (stage *finalStage) Cleanup() {
 }
 
 func (stage *finalStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {

@@ -122,6 +122,7 @@ func (conn *Conn) recvMessage() (err error) {
 			}
 			conn.Logger.Info("consume received msg %v", msg)
 			if err = conn.Stage.ConsumeMessage(msg); err != nil {
+				conn.Stage.Cleanup()
 				return
 			}
 			continue

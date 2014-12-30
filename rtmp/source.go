@@ -30,6 +30,7 @@ import (
 
 type RtmpSource struct {
     Req *protocol.RtmpRequest
+    Logger core.Logger
     SrsId int
 }
 
@@ -43,7 +44,56 @@ func (source *RtmpSource) Initialize() (err error) {
     return
 }
 
+func (source *RtmpSource) OnPublish(logger core.Logger, srsId int) (err error) {
+    source.Logger = logger
+
+    // whatever, the publish thread is the source or edge source,
+    // save its id to srouce id.
+    source.SourceId(srsId)
+
+    // TODO: FIXME: implements it.
+
+    return
+}
+
+func (source *RtmpSource) OnUnPublish() {
+    // TODO: FIXME: implements it.
+}
+
+func (source *RtmpSource) SourceId(srsId int) {
+    if source.SrsId == srsId {
+        return
+    }
+
+    source.SrsId = srsId
+
+    // notice all consumer
+    // TODO: FIXME: implements it.
+}
+
 func (source *RtmpSource) OnMessage(msg *protocol.RtmpMessage) (err error) {
+    // process audio packet
+    if msg.Header.IsAudio() {
+        if err = source.OnAudio(msg); err != nil {
+            return
+        }
+    }
+
+    // process video packet
+    if msg.Header.IsVideo() {
+    }
+
+    // process aggregate packet
+    if msg.Header.IsAggregate() {
+    }
+
+    // process onMetaData
+    if msg.Header.IsAmf0Data() || msg.Header.IsAmf3Data() {
+    }
+    return
+}
+
+func (source *RtmpSource) OnAudio(msg *protocol.RtmpMessage) (err error) {
     return
 }
 
