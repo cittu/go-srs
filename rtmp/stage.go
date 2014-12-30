@@ -24,24 +24,31 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 package rtmp
 
 import (
-    "github.com/winlinvip/go-srs/core"
     "github.com/winlinvip/go-srs/protocol"
     "errors"
     "net"
+    "github.com/winlinvip/go-srs/core"
 )
 
 var FinalStage = errors.New("rtmp final stage")
 
-type commonStage struct {
-    logger core.Logger
+/**
+* the rtmp client type.
+*/
+const (
+    SrsRtmpConnUnknown = iota
+    SrsRtmpConnPlay
+    SrsRtmpConnFMLEPublish
+    SrsRtmpConnFlashPublish
+)
+
+type connectStage struct {
     conn *protocol.Conn
 }
 
-type connectStage struct {
-    commonStage
-}
-
 func (stage *connectStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
+    logger := stage.conn.Logger
+
     // always expect the connect app message.
     if !msg.Header.IsAmf0Command() && !msg.Header.IsAmf3Command() {
         return
@@ -55,48 +62,48 @@ func (stage *connectStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error)
     // got connect app packet
     if pkt,ok := pkt.(*protocol.RtmpConnectAppPacket); ok {
         req := &stage.conn.Request
-        if err = req.Parse(pkt.CommandObject, pkt.Arguments, stage.logger); err != nil {
-            stage.logger.Error("parse request from connect app packet failed.")
+        if err = req.Parse(pkt.CommandObject, pkt.Arguments, logger); err != nil {
+            logger.Error("parse request from connect app packet failed.")
             return
         }
-        stage.logger.Info("rtmp connect app success")
+        logger.Info("rtmp connect app success")
 
         // discovery vhost, resolve the vhost from config
         // TODO: FIXME: implements it
 
         // check the request paramaters.
-        if err = req.Validate(stage.logger); err != nil {
+        if err = req.Validate(logger); err != nil {
             return
         }
-        stage.logger.Info("discovery app success. schema=%v, vhost=%v, port=%v, app=%v",
+        logger.Info("discovery app success. schema=%v, vhost=%v, port=%v, app=%v",
             req.Schema, req.Vhost, req.Port, req.App)
 
         // check vhost
         // TODO: FIXME: implements it
-        stage.logger.Info("check vhost success.")
+        logger.Info("check vhost success.")
 
-        stage.logger.Trace("connect app, tcUrl=%v, pageUrl=%v, swfUrl=%v, schema=%v, vhost=%v, port=%v, app=%v, args=%v",
+        logger.Trace("connect app, tcUrl=%v, pageUrl=%v, swfUrl=%v, schema=%v, vhost=%v, port=%v, app=%v, args=%v",
             req.TcUrl, req.PageUrl, req.SwfUrl, req.Schema, req.Vhost, req.Port, req.App, req.FormatArgs())
 
         // show client identity
         si := SrsInfo{}
         si.Parse(req.Args)
         if si.SrsPid > 0 {
-            stage.logger.Trace("edge-srs ip=%v, version=%v, pid=%v, id=%v",
+            logger.Trace("edge-srs ip=%v, version=%v, pid=%v, id=%v",
                 si.SrsServerIp, si.SrsVersion, si.SrsPid, si.SrsId)
         }
 
         if err = stage.conn.SetWindowAckSize(2.5 * 1000 * 1000); err != nil {
-            stage.logger.Error("set window acknowledgement size failed.")
+            logger.Error("set window acknowledgement size failed.")
             return
         }
-        stage.logger.Info("set window acknowledgement size success")
+        logger.Info("set window acknowledgement size success")
 
         if err = stage.conn.SetPeerBandwidth(2.5 * 1000 * 1000, 2); err != nil {
-            stage.logger.Error("set peer bandwidth failed.")
+            logger.Error("set peer bandwidth failed.")
             return
         }
-        stage.logger.Info("set peer bandwidth success")
+        logger.Info("set peer bandwidth success")
 
         // get the ip which client connected.
         var iorw *net.TCPConn = stage.conn.IoRw
@@ -111,101 +118,152 @@ func (stage *connectStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error)
 
         // response the client connect ok.
         if err = stage.conn.ResponseConnectApp(req.ObjectEncoding, localIp); err != nil {
-            stage.logger.Error("response connect app failed.")
+            logger.Error("response connect app failed.")
             return
         }
-        stage.logger.Info("response connect app success")
+        logger.Info("response connect app success")
 
         if err = stage.conn.OnBwDone(); err != nil {
-            stage.logger.Error("on_bw_done failed.")
+            logger.Error("on_bw_done failed.")
             return
         }
-        stage.logger.Info("on_bw_done success")
+        logger.Info("on_bw_done success")
 
         // use next stage.
-        stage.conn.Stage = NewIdentifyClientStage(stage.conn)
+        stage.conn.Stage = &identifyClientStage{conn:stage.conn,}
+        return
     }
 
     return
 }
 
 type identifyClientStage struct {
-    commonStage
-}
-
-func NewIdentifyClientStage(conn *protocol.Conn) protocol.Stage {
-    return &identifyClientStage{
-        commonStage:commonStage{
-            logger:conn.Logger,
-            conn: conn,
-        },
-    }
+    conn *protocol.Conn
 }
 
 func (stage *identifyClientStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
-    h := &msg.Header
-    if h.IsAckledgement() || h.IsSetChunkSize() || h.IsWindowAckledgementSize() || h.IsUserControlMessage() {
-        stage.logger.Info("ignore the ack/setChunkSize/windowAck/userControl msg")
-        return
-    }
-    if !h.IsAmf0Command() && !h.IsAmf3Command() {
-        stage.logger.Trace("identify ignore messages except AMF0/AMF3 command message, type=%d", h.MessageType)
+    logger := stage.conn.Logger
+
+    if identifyIgnoreMessage(msg, logger) {
         return
     }
 
     var pkt protocol.RtmpPacket
     if pkt,err = stage.conn.Protocol.DecodeMessage(msg); err != nil {
-        stage.logger.Error("identify decode message failed")
+        logger.Error("identify decode message failed")
         return
     }
 
-    if pkt,ok := pkt.(*protocol.RtmpCreateStreamPacket); ok {
-        stage.logger.Info("identify client by create stream, play or flash publish.")
+    switch pkt := pkt.(type) {
+    case *protocol.RtmpCreateStreamPacket:
+        logger.Info("identify client by create stream, play or flash publish.")
         if err = stage.conn.ResponseCreateStream(float64(pkt.TransactionId), stage.conn.StreamId); err != nil {
-            stage.logger.Error("send createStream response message failed.")
+            logger.Error("send createStream response message failed.")
             return
         }
-        stage.logger.Info("send createStream response message success.")
+        logger.Info("send createStream response message success.")
 
         // use next stage.
-        stage.conn.Stage = NewIdentifyClientCreateStreamStage(stage.conn)
+        stage.conn.Stage = &identifyClientCreateStreamStage{conn: stage.conn,}
+    case *protocol.RtmpFMLEStartPacket:
+        logger.Info("identify client by releaseStream, fmle publish.")
+        if err = stage.conn.ResponseFMLEStart(float64(pkt.TransactionId)); err != nil {
+            logger.Error("send releaseStream response message failed.")
+            return
+        }
+        logger.Info("send releaseStream response message success.")
+
+        // use next stage.
+        stage.conn.Stage = &fmlePublishStage{
+            conn: stage.conn,
+            clientType: SrsRtmpConnFMLEPublish,
+            streamName: string(pkt.StreamName),
+        }
     }
 
     // use next stage.
-    stage.conn.Stage = NewFinalStage(stage.conn)
+    stage.conn.Stage = &finalStage{}
     return
 }
 
 type identifyClientCreateStreamStage struct {
-    commonStage
-}
-
-func NewIdentifyClientCreateStreamStage(conn *protocol.Conn) protocol.Stage {
-    return &identifyClientCreateStreamStage{
-        commonStage:commonStage{
-            logger:conn.Logger,
-            conn: conn,
-        },
-    }
+    conn *protocol.Conn
 }
 
 func (stage *identifyClientCreateStreamStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
-    return FinalStage
+    logger := stage.conn.Logger
+
+    if identifyIgnoreMessage(msg, logger) {
+        return
+    }
+
+    var pkt protocol.RtmpPacket
+    if pkt,err = stage.conn.Protocol.DecodeMessage(msg); err != nil {
+        logger.Error("identify decode message failed")
+        return
+    }
+
+    if pkt,ok := pkt.(*protocol.RtmpPlayPacket); ok {
+        logger.Info("identity client type=play, stream_name=%v, duration=%.2f", pkt.StreamName, pkt.Duration)
+
+        // use next stage.
+        stage.conn.Stage = &playStage{
+            conn: stage.conn,
+            clientType: SrsRtmpConnPlay,
+            streamName: string(pkt.StreamName),
+            duration: float64(pkt.Duration),
+        }
+        return
+    }
+
+    return
+}
+
+type playStage struct {
+    conn *protocol.Conn
+    clientType int
+    streamName string
+    duration float64
+}
+
+func (stage *playStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
+    // TODO: FIXME: implements it.
+    return
+}
+
+type fmlePublishStage struct {
+    conn *protocol.Conn
+    clientType int
+    streamName string
+}
+
+func (stage *fmlePublishStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
+    // TODO: FIXME: implements it.
+    return
 }
 
 type finalStage struct {
-    commonStage
-}
-
-func NewFinalStage(conn *protocol.Conn) protocol.Stage {
-    return &finalStage{
-        commonStage:commonStage{
-            logger:conn.Logger,
-            conn: conn,
-        },
-    }
 }
 
 func (stage *finalStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
     return FinalStage
+}
+
+/**
+* Helper functions for stage.
+ */
+func identifyIgnoreMessage(msg *protocol.RtmpMessage, logger core.Logger) bool {
+    h := &msg.Header
+
+    if h.IsAckledgement() || h.IsSetChunkSize() || h.IsWindowAckledgementSize() || h.IsUserControlMessage() {
+        logger.Info("ignore the ack/setChunkSize/windowAck/userControl msg")
+        return true
+    }
+
+    if !h.IsAmf0Command() && !h.IsAmf3Command() {
+        logger.Trace("identify ignore messages except AMF0/AMF3 command message, type=%d", h.MessageType)
+        return true
+    }
+
+    return false
 }

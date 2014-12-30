@@ -138,6 +138,19 @@ const (
 	RTMP_EXTENDED_TIMESTAMP = 0xFFFFFF
 	// 6. Chunking, RTMP protocol default chunk size.
 	SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE = 128
+
+	/**
+    * 6. Chunking
+    * The chunk size is configurable. It can be set using a control
+    * message(Set Chunk Size) as described in section 7.1. The maximum
+    * chunk size can be 65536 bytes and minimum 128 bytes. Larger values
+    * reduce CPU usage, but also commit to larger writes that can delay
+    * other content on lower bandwidth connections. Smaller chunks are not
+    * good for high-bit rate streaming. Chunk size is maintained
+    * independently for each direction.
+    */
+	SRS_CONSTS_RTMP_MIN_CHUNK_SIZE = 128
+	SRS_CONSTS_RTMP_MAX_CHUNK_SIZE = 65536
 )
 
 /**
@@ -250,12 +263,21 @@ const (
 // the rtmp message header map to fmt.
 var mhSizes = []byte{11, 7, 3, 0}
 
+type AckWindowSize struct {
+	Ack int
+	Acked int
+}
+
 type Protocol struct {
 	IoRw *net.TCPConn
 	Logger core.Logger
 	ChunkStreams map[int]*ChunkStream
 	InChunkSize int
 	OutChunkSize int
+	/**
+    * input ack size, when to send the acked packet.
+    */
+	InAckSize AckWindowSize
 }
 
 func NewProtocol(iorw *net.TCPConn, logger core.Logger) *Protocol {
@@ -454,8 +476,57 @@ func (proto *Protocol) PumpMessage() (msg *RtmpMessage, err error) {
 		return
 	}
 
+	// when got message filter it first.
+	if err = proto.onRecvMessage(msg); err != nil {
+		return
+	}
+
 	proto.Logger.Info("get entire message success. size=%v, message(type=%v, size=%v, time=%v, sid=%v)",
 		len(msg.Payload), msg.Header.MessageType, msg.Header.PayloadLength, msg.Header.Timestamp, msg.Header.StreamId)
+
+	return
+}
+
+func (proto *Protocol) onRecvMessage(msg *RtmpMessage) (err error) {
+	// acknowledgement
+	// TODO: FIXME: implements it.
+
+	var pkt RtmpPacket
+	switch msg.Header.MessageType {
+	case RTMP_MSG_SetChunkSize:
+		fallthrough
+	case RTMP_MSG_UserControlMessage:
+		fallthrough
+	case RTMP_MSG_WindowAcknowledgementSize:
+		if pkt,err = proto.DecodeMessage(msg); err != nil {
+			proto.Logger.Error("decode packet from message payload failed.")
+			return
+		}
+		proto.Logger.Info("decode packet from message payload success.")
+	}
+
+	switch pkt := pkt.(type) {
+	case *RtmpSetWindowAckSizePacket:
+		if pkt.AckowledgementWindowSize > 0 {
+			proto.InAckSize.Ack = int(pkt.AckowledgementWindowSize)
+			// @remark, we ignore this message, for user noneed to care.
+			// but it's important for dev, for client/server will block if required
+			// ack msg not arrived.
+			proto.Logger.Info("set ack window size to %v", pkt.AckowledgementWindowSize)
+		} else {
+			proto.Logger.Warn("ignored. set ack window size is %v", pkt.AckowledgementWindowSize)
+		}
+	case *RtmpSetChunkSizePacket:
+		// for some server, the actual chunk size can greater than the max value(65536),
+		// so we just warning the invalid chunk size, and actually use it is ok,
+		// @see: https://github.com/winlinvip/simple-rtmp-server/issues/160
+		if pkt.ChunkSize < SRS_CONSTS_RTMP_MIN_CHUNK_SIZE || pkt.ChunkSize > SRS_CONSTS_RTMP_MAX_CHUNK_SIZE {
+			proto.Logger.Warn("accept chunk size %d, but should in [%v, %v], @see: https://github.com/winlinvip/simple-rtmp-server/issues/160",
+				pkt.ChunkSize, SRS_CONSTS_RTMP_MIN_CHUNK_SIZE, SRS_CONSTS_RTMP_MAX_CHUNK_SIZE)
+		}
+		proto.InChunkSize = int(pkt.ChunkSize)
+		proto.Logger.Trace("input chunk size to %v", pkt.ChunkSize)
+	}
 
 	return
 }

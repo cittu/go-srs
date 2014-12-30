@@ -243,6 +243,14 @@ func (conn *Conn) ResponseConnectApp(objectEncoding int, serverIp string) (err e
 	return conn.EnqueueOutgoingMessage(msg)
 }
 
+func (conn *Conn) ResponseFMLEStart(transactionId float64) (err error) {
+	var msg *RtmpMessage
+	if msg,err = conn.Protocol.EncodeMessage(NewRtmpFMLEStartResPacket(transactionId), 0); err != nil {
+		return
+	}
+	return conn.EnqueueOutgoingMessage(msg)
+}
+
 func NewConn(svr *Server, conn *net.TCPConn) *Conn {
 	v := &Conn{
 		Server: svr,

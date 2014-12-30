@@ -56,10 +56,5 @@ func (f *Factory) CreateLogger(name string, srsId int) core.Logger {
 }
 
 func (f *Factory) NewConnectStage(conn *protocol.Conn) protocol.Stage {
-    return &connectStage{
-        commonStage:commonStage{
-            logger:conn.Logger,
-            conn: conn,
-        },
-    }
+    return &connectStage{conn:conn,}
 }

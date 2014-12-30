@@ -114,10 +114,20 @@ func DiscoveryPacket(msg *RtmpMessage, logger core.Logger) (b []byte, pkt RtmpPa
         case RTMP_AMF0_COMMAND_CREATE_STREAM:
             logger.Info("decode the AMF0/AMF3 command(createStream message).")
             pkt = NewRtmpCreateStreamPacket()
+        case RTMP_AMF0_COMMAND_PLAY:
+            logger.Info("decode the AMF0/AMF3 command(paly message).")
+            pkt = NewRtmpPlayPacket()
+        case RTMP_AMF0_COMMAND_RELEASE_STREAM:
+            logger.Info("decode the AMF0/AMF3 command(FMLE releaseStream message).")
+            pkt = NewRtmpFMLEStartPacket()
         }
     } else if header.IsUserControlMessage() {
     } else if header.IsWindowAckledgementSize() {
+        logger.Info("start to decode set ack window size message.")
+        pkt = NewRtmpSetWindowAckSizePacket(0)
     } else if header.IsSetChunkSize() {
+        logger.Info("start to decode set chunk size message.")
+        pkt = NewRtmpSetChunkSizePacket()
     } else {
     }
 
@@ -289,7 +299,7 @@ func NewRtmpConnectAppResPacket(objectEncoding int, serverIp string, srsId int) 
     v.Info.Set("objectEncoding", Amf0Number(objectEncoding))
 
     data := NewAmf0EcmaArray()
-    v.Props.Set("data", data)
+    v.Info.Set("data", data)
     data.Set("version", Amf0String(RTMP_SIG_FMS_VER))
     data.Set("srs_sig", Amf0String(core.RTMP_SIG_SRS_KEY))
     data.Set("srs_server", Amf0String(fmt.Sprintf("%v %v (%v)",
@@ -486,6 +496,47 @@ func (pkt *RtmpSetPeerBandwidthPacket) PerferCid() int {
 }
 
 /**
+* 7.1. Set Chunk Size
+* Protocol control message 1, Set Chunk Size, is used to notify the
+* peer about the new maximum chunk size.
+*/
+type RtmpSetChunkSizePacket struct {
+    /**
+    * The maximum chunk size can be 65536 bytes. The chunk size is
+    * maintained independently for each direction.
+    */
+    ChunkSize int32
+}
+
+func NewRtmpSetChunkSizePacket() RtmpPacket {
+    return &RtmpSetChunkSizePacket{
+        ChunkSize: SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE,
+    }
+}
+
+func (pkt *RtmpSetChunkSizePacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = binary.Read(buffer, binary.BigEndian, &pkt.ChunkSize); err != nil {
+        return RtmpMsgSpbpRead
+    }
+    return
+}
+
+func (pkt *RtmpSetChunkSizePacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = binary.Write(buffer, binary.BigEndian, pkt.ChunkSize); err != nil {
+        return
+    }
+    return
+}
+
+func (pkt *RtmpSetChunkSizePacket) MessageType() byte {
+    return RTMP_MSG_SetChunkSize
+}
+
+func (pkt *RtmpSetChunkSizePacket) PerferCid() int {
+    return RTMP_CID_ProtocolControl
+}
+
+/**
 * when bandwidth test done, notice client.
 */
 type RtmpOnBWDonePacket struct {
@@ -637,5 +688,245 @@ func (pkt *RtmpCreateStreamResPacket) MessageType() byte {
 }
 
 func (pkt *RtmpCreateStreamResPacket) PerferCid() int {
+    return RTMP_CID_OverConnection
+}
+
+/**
+* 4.2.1. play
+* The client sends this command to the server to play a stream.
+*/
+type RtmpPlayPacket struct {
+    rtmpCommonCallPacket
+    /**
+    * Command information does not exist. Set to null type.
+    * @remark, never be NULL, an AMF0 null instance.
+    */
+    CommandObject Amf0Null
+    /**
+    * Name of the stream to play.
+    * To play video (FLV) files, specify the name of the stream without a file
+    *       extension (for example, "sample").
+    * To play back MP3 or ID3 tags, you must precede the stream name with mp3:
+    *       (for example, "mp3:sample".)
+    * To play H.264/AAC files, you must precede the stream name with mp4: and specify the
+    *       file extension. For example, to play the file sample.m4v, specify
+    *       "mp4:sample.m4v"
+    */
+    StreamName Amf0String
+    /**
+    * An optional parameter that specifies the start time in seconds.
+    * The default value is -2, which means the subscriber first tries to play the live
+    *       stream specified in the Stream Name field. If a live stream of that name is
+    *       not found, it plays the recorded stream specified in the Stream Name field.
+    * If you pass -1 in the Start field, only the live stream specified in the Stream
+    *       Name field is played.
+    * If you pass 0 or a positive number in the Start field, a recorded stream specified
+    *       in the Stream Name field is played beginning from the time specified in the
+    *       Start field.
+    * If no recorded stream is found, the next item in the playlist is played.
+    */
+    Start Amf0Number
+    /**
+    * An optional parameter that specifies the duration of playback in seconds.
+    * The default value is -1. The -1 value means a live stream is played until it is no
+    *       longer available or a recorded stream is played until it ends.
+    * If u pass 0, it plays the single frame since the time specified in the Start field
+    *       from the beginning of a recorded stream. It is assumed that the value specified
+    *       in the Start field is equal to or greater than 0.
+    * If you pass a positive number, it plays a live stream for the time period specified
+    *       in the Duration field. After that it becomes available or plays a recorded
+    *       stream for the time specified in the Duration field. (If a stream ends before the
+    *       time specified in the Duration field, playback ends when the stream ends.)
+    * If you pass a negative number other than -1 in the Duration field, it interprets the
+    *       value as if it were -1.
+    */
+    Duration Amf0Number
+    /**
+    * An optional Boolean value or number that specifies whether to flush any
+    * previous playlist.
+    */
+    Reset Amf0Boolean
+}
+
+func NewRtmpPlayPacket() RtmpPacket {
+    v := &RtmpPlayPacket{}
+    v.CommandName = Amf0String(RTMP_AMF0_COMMAND_PLAY)
+    v.TransactionId = Amf0Number(0.0)
+    v.Start = Amf0Number(-2)
+    v.Duration = Amf0Number(-1)
+    v.Reset = Amf0Boolean(true)
+    return v
+}
+
+func (pkt *RtmpPlayPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = pkt.rtmpCommonCallPacket.Decode(buffer, logger); err != nil {
+        return
+    }
+    if err = DecodeAmf0Null(buffer); err != nil {
+        return
+    }
+    if pkt.StreamName,err = DecodeAmf0String(buffer); err != nil {
+        return
+    }
+    if buffer.Len() > 0 {
+        if pkt.Start,err = DecodeAmf0Number(buffer); err != nil {
+            return
+        }
+    }
+    if buffer.Len() > 0 {
+        if pkt.Duration,err = DecodeAmf0Number(buffer); err != nil {
+            return
+        }
+    }
+    if buffer.Len() > 0 {
+        if pkt.Reset,err = DecodeAmf0Boolean(buffer); err != nil {
+            return
+        }
+    }
+    return
+}
+
+func (pkt *RtmpPlayPacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = pkt.rtmpCommonCallPacket.Encode(buffer, logger); err != nil {
+        return
+    }
+    if err = EncodeAmf0Null(buffer); err != nil {
+        return
+    }
+    if err = EncodeAmf0String(buffer, pkt.StreamName); err != nil {
+        return
+    }
+    if err = EncodeAmf0Number(buffer, pkt.Start); err != nil {
+        return
+    }
+    if err = EncodeAmf0Number(buffer, pkt.Duration); err != nil {
+        return
+    }
+    if err = EncodeAmf0Boolean(buffer, pkt.Reset); err != nil {
+        return
+    }
+    return
+}
+
+func (pkt *RtmpPlayPacket) MessageType() byte {
+    return RTMP_MSG_AMF0CommandMessage
+}
+
+func (pkt *RtmpPlayPacket) PerferCid() int {
+    return RTMP_CID_OverStream
+}
+
+/**
+* FMLE start publish: ReleaseStream/PublishStream
+*/
+type RtmpFMLEStartPacket struct {
+    rtmpCommonCallPacket
+    /**
+    * If there exists any command info this is set, else this is set to null type.
+    * @remark, never be NULL, an AMF0 null instance.
+    */
+    CommandObject Amf0Null
+    /**
+    * the stream name to start publish or release.
+    */
+    StreamName Amf0String
+}
+
+func NewRtmpFMLEStartPacket() RtmpPacket {
+    v := &RtmpFMLEStartPacket{}
+    v.CommandName = Amf0String(RTMP_AMF0_COMMAND_RELEASE_STREAM)
+    v.TransactionId = Amf0Number(0.0)
+    return v
+}
+
+func (pkt *RtmpFMLEStartPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = pkt.rtmpCommonCallPacket.Decode(buffer, logger); err != nil {
+        return
+    }
+    if err = DecodeAmf0Null(buffer); err != nil {
+        return
+    }
+    if pkt.StreamName,err = DecodeAmf0String(buffer); err != nil {
+        return
+    }
+    return
+}
+
+func (pkt *RtmpFMLEStartPacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = pkt.rtmpCommonCallPacket.Encode(buffer, logger); err != nil {
+        return
+    }
+    if err = EncodeAmf0Null(buffer); err != nil {
+        return
+    }
+    if err = EncodeAmf0String(buffer, pkt.StreamName); err != nil {
+        return
+    }
+    return
+}
+
+func (pkt *RtmpFMLEStartPacket) MessageType() byte {
+    return RTMP_MSG_AMF0CommandMessage
+}
+
+func (pkt *RtmpFMLEStartPacket) PerferCid() int {
+    return RTMP_CID_OverConnection
+}
+
+/**
+* response for SrsFMLEStartPacket.
+*/
+type RtmpFMLEStartResPacket struct {
+    rtmpCommonCallPacket
+    /**
+    * If there exists any command info this is set, else this is set to null type.
+    * @remark, never be NULL, an AMF0 null instance.
+    */
+    CommandObject Amf0Null
+    /**
+    * the optional args, set to undefined.
+    * @remark, never be NULL, an AMF0 undefined instance.
+    */
+    Args Amf0Undefined
+}
+
+func NewRtmpFMLEStartResPacket(transactionId float64) RtmpPacket {
+    v := &RtmpFMLEStartResPacket{}
+    v.CommandName = Amf0String(RTMP_AMF0_COMMAND_RESULT)
+    v.TransactionId = Amf0Number(transactionId)
+    return v
+}
+
+func (pkt *RtmpFMLEStartResPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = pkt.rtmpCommonCallPacket.Decode(buffer, logger); err != nil {
+        return
+    }
+    if err = DecodeAmf0Null(buffer); err != nil {
+        return
+    }
+    if err = DecodeAmf0Undefined(buffer); err != nil {
+        return
+    }
+    return
+}
+
+func (pkt *RtmpFMLEStartResPacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = pkt.rtmpCommonCallPacket.Encode(buffer, logger); err != nil {
+        return
+    }
+    if err = EncodeAmf0Null(buffer); err != nil {
+        return
+    }
+    if err = EncodeAmf0Undefined(buffer); err != nil {
+        return
+    }
+    return
+}
+
+func (pkt *RtmpFMLEStartResPacket) MessageType() byte {
+    return RTMP_MSG_AMF0CommandMessage
+}
+
+func (pkt *RtmpFMLEStartResPacket) PerferCid() int {
     return RTMP_CID_OverConnection
 }
