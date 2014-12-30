@@ -43,7 +43,7 @@ func (source *RtmpSource) Initialize() (err error) {
     return
 }
 
-func (source *RtmpSource) Cache(enabledCache bool) {
+func (source *RtmpSource) GopCache(enabledCache bool) {
     // TODO: FIXME: implements it.
 }
 

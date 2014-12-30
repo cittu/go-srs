@@ -47,14 +47,19 @@ func (f *Factory) SrsId() int {
 func (f *Factory) CreateLogger(name string, srsId int) core.Logger {
     v := &Logger{}
     v.GoroutineId = srsId
-    v.Flag = log.Ldate | log.Ltime | core.Linfo | core.Ltrace | core.Lwarn | core.Lerror
-    //v.Flag = log.Ldate | log.Ltime | core.Ltrace | core.Lwarn | core.Lerror
+    //v.Flag = log.Ldate | log.Ltime | core.Linfo | core.Ltrace | core.Lwarn | core.Lerror
+    v.Flag = log.Ldate | log.Ltime | core.Ltrace | core.Lwarn | core.Lerror
     // TODO: FIXME: apply config file.
     prefix := fmt.Sprintf("[%s][%d][%d] ", name, os.Getpid(), v.GoroutineId)
     v.Logger = log.New(os.Stdout, prefix, v.Flag)
     return v
 }
 
+// interface core.Factory
 func (f *Factory) NewConnectStage(conn *protocol.Conn) protocol.Stage {
     return &connectStage{conn:conn,}
+}
+
+func (f *Factory) NewIdenfityStage(conn *protocol.Conn) protocol.Stage {
+    return &identifyClientStage{conn:conn,}
 }

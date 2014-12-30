@@ -325,7 +325,7 @@ func (stage *fmlePublishStage) ConsumeMessage(msg *protocol.RtmpMessage) (err er
     vhostIsEdge := false
     logger.Trace("source url=%s, ip=%s, cache=%v, is_edge=%v, source_id=%d[%d]",
         req.StreamUrl(), stage.conn.IoRw.RemoteAddr().String(), enabledCache, vhostIsEdge, source.SrsId, source.SrsId)
-    source.Cache(enabledCache)
+    source.GopCache(enabledCache)
 
     // source->on_edge_start_publish
     // TODO: FIXME: implements it.
@@ -339,7 +339,7 @@ func (stage *fmlePublishStage) ConsumeMessage(msg *protocol.RtmpMessage) (err er
 }
 
 /**
-* the last stage close connection.
+* fmle start publish stage
  */
 type fmlePublishStartStage struct {
     conn *protocol.Conn
@@ -385,9 +385,48 @@ func (stage *fmlePublishStartStage) ConsumeMessage(msg *protocol.RtmpMessage) (e
             return
         }
         logger.Info("send onStatus(NetStream.Publish.Start) message success.")
+
+        logger.Info("start to publish stream success")
+        stage.conn.Stage = &fmlePublishingStage{
+            conn: stage.conn,
+            source: stage.source,
+        }
     default:
         logger.Info("fmle publish start stage ignore msg %v", msg)
     }
+
+    return
+}
+
+/**
+* fmle publishing stage
+ */
+type fmlePublishingStage struct {
+    conn *protocol.Conn
+    source *RtmpSource
+}
+
+func (stage *fmlePublishingStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
+    logger := stage.conn.Logger
+
+    // process publish event.
+    if msg.Header.IsAmf3Command() || msg.Header.IsAmf0Command() {
+        // for fmle, drop others except the fmle start packet.
+        var pkt protocol.RtmpPacket
+        if pkt,err = stage.conn.Protocol.DecodeMessage(msg); err != nil {
+            logger.Error("fmle decode unpublish message failed")
+            return
+        }
+
+        if _,ok := pkt.(*protocol.RtmpFcUnPublishPacket); ok {
+            // TOOD: FIMXE: implements it.
+            return protocol.RtmpControlRepublish
+        }
+        logger.Trace("fmle ignore AMF0/AMF3 command message.")
+        return
+    }
+
+    // video, audio, data message
 
     return
 }

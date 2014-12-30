@@ -36,6 +36,7 @@ import (
 )
 
 var RtmpInChannelMsg = errors.New("put msg to channel failed")
+var RtmpControlRepublish = errors.New("encoder republish stream")
 
 type Conn struct {
 	SrsId int
@@ -92,9 +93,17 @@ func (conn *Conn) Serve() {
 	go conn.sendMessage()
 
 	// rtmp msg loop
-	if err := conn.recvMessage(); err != nil {
-		conn.Logger.Error("message cycle failed, err is %v", err)
-		return
+	for {
+		if err := conn.recvMessage(); err != nil {
+			if err == RtmpControlRepublish {
+				conn.Stage = conn.Server.Factory.NewIdenfityStage(conn)
+				conn.Logger.Trace("control message(unpublish) accept, retry stream service.")
+				continue
+			}
+
+			conn.Logger.Error("message cycle failed, err is %v", err)
+			break
+		}
 	}
 	conn.Logger.Trace("serve conn ok")
 }

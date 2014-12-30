@@ -121,6 +121,9 @@ func DiscoveryPacket(msg *RtmpMessage, logger core.Logger) (b []byte, pkt RtmpPa
         case RTMP_AMF0_COMMAND_FC_PUBLISH:
             logger.Info("decode the AMF0/AMF3 command(FMLE FCPublish message).")
             pkt = NewRtmpFcPublishPacket()
+        case RTMP_AMF0_COMMAND_UNPUBLISH:
+            logger.Info("decode the AMF0/AMF3 command(FMLE FCUnpublish message).")
+            pkt = NewRtmpFcUnPublishPacket()
         case RTMP_AMF0_COMMAND_PUBLISH:
             logger.Info("decode the AMF0/AMF3 command(publish message).")
             pkt = NewRtmpPublishPacket()
@@ -817,7 +820,7 @@ func (pkt *RtmpReleaseStreamPacket) PerferCid() int {
 }
 
 /**
-* FMLE start publish: PublishStream
+* FMLE start publish: FCPublish
 */
 type RtmpFcPublishPacket struct {
     RtmpReleaseStreamPacket
@@ -826,6 +829,20 @@ type RtmpFcPublishPacket struct {
 func NewRtmpFcPublishPacket() RtmpPacket {
     v := &RtmpFcPublishPacket{}
     v.CommandName = Amf0String(RTMP_AMF0_COMMAND_FC_PUBLISH)
+    v.TransactionId = Amf0Number(0.0)
+    return v
+}
+
+/**
+* FMLE stop publish: FCUnpublish
+*/
+type RtmpFcUnPublishPacket struct {
+    RtmpReleaseStreamPacket
+}
+
+func NewRtmpFcUnPublishPacket() RtmpPacket {
+    v := &RtmpFcUnPublishPacket{}
+    v.CommandName = Amf0String(RTMP_AMF0_COMMAND_UNPUBLISH)
     v.TransactionId = Amf0Number(0.0)
     return v
 }

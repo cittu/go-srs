@@ -28,4 +28,5 @@ import "github.com/winlinvip/go-srs/core"
 type Factory interface {
     core.Factory
     NewConnectStage(conn *Conn) Stage
+    NewIdenfityStage(conn *Conn) Stage
 }
