@@ -31,7 +31,9 @@ import (
 )
 
 var RtmpMsgSwaspRead = errors.New("decode ack window size failed.")
-var RtmpMsgSpbpRead = errors.New("decode set peer bandwidth failed.")
+var RtmpMsgSetPeerBandwidthRead = errors.New("decode set peer bandwidth failed.")
+var RtmpMsgSetChunkSizeRead = errors.New("decode set chunk size failed.")
+var RtmpMsgUserControlRead = errors.New("decode user control failed.")
 
 const (
     /**
@@ -70,6 +72,81 @@ const (
 
     // default stream id for response the createStream request.
     SRS_DEFAULT_SID = 1
+)
+
+// 3.7. User Control message
+const (
+    // generally, 4bytes event-data
+    /**
+    * The server sends this event to notify the client
+    * that a stream has become functional and can be
+    * used for communication. By default, this event
+    * is sent on ID 0 after the application connect
+    * command is successfully received from the
+    * client. The event data is 4-byte and represents
+    * the stream ID of the stream that became
+    * functional.
+    */
+    SrcPCUCStreamBegin              = 0x00
+
+    /**
+    * The server sends this event to notify the client
+    * that the playback of data is over as requested
+    * on this stream. No more data is sent without
+    * issuing additional commands. The client discards
+    * the messages received for the stream. The
+    * 4 bytes of event data represent the ID of the
+    * stream on which playback has ended.
+    */
+    SrcPCUCStreamEOF                = 0x01
+
+    /**
+    * The server sends this event to notify the client
+    * that there is no more data on the stream. If the
+    * server does not detect any message for a time
+    * period, it can notify the subscribed clients
+    * that the stream is dry. The 4 bytes of event
+    * data represent the stream ID of the dry stream.
+    */
+    SrcPCUCStreamDry                = 0x02
+
+    /**
+    * The client sends this event to inform the server
+    * of the buffer size (in milliseconds) that is
+    * used to buffer any data coming over a stream.
+    * This event is sent before the server starts
+    * processing the stream. The first 4 bytes of the
+    * event data represent the stream ID and the next
+    * 4 bytes represent the buffer length, in
+    * milliseconds.
+    */
+    SrcPCUCSetBufferLength          = 0x03 // 8bytes event-data
+
+    /**
+    * The server sends this event to notify the client
+    * that the stream is a recorded stream. The
+    * 4 bytes event data represent the stream ID of
+    * the recorded stream.
+    */
+    SrcPCUCStreamIsRecorded         = 0x04
+
+    /**
+    * The server sends this event to test whether the
+    * client is reachable. Event data is a 4-byte
+    * timestamp, representing the local server time
+    * when the server dispatched the command. The
+    * client responds with kMsgPingResponse on
+    * receiving kMsgPingRequest.
+    */
+    SrcPCUCPingRequest              = 0x06
+
+    /**
+    * The client sends this event to the server in
+    * response to the ping request. The event data is
+    * a 4-byte timestamp, which was received with the
+    * kMsgPingRequest request.
+    */
+    SrcPCUCPingResponse             = 0x07
 )
 
 func DiscoveryPacket(msg *RtmpMessage, logger core.Logger) (b []byte, pkt RtmpPacket, err error) {
@@ -136,6 +213,8 @@ func DiscoveryPacket(msg *RtmpMessage, logger core.Logger) (b []byte, pkt RtmpPa
             }
         }
     } else if header.IsUserControlMessage() {
+        logger.Info("start to decode user control message.")
+        pkt = NewRtmpUserControlPacket()
     } else if header.IsWindowAckledgementSize() {
         logger.Info("start to decode set ack window size message.")
         pkt = NewRtmpSetWindowAckSizePacket(0)
@@ -461,10 +540,10 @@ func NewRtmpSetPeerBandwidthPacket(bandwidth, _type int) RtmpPacket {
 
 func (pkt *RtmpSetPeerBandwidthPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
     if err = binary.Read(buffer, binary.BigEndian, &pkt.Bandwidth); err != nil {
-        return RtmpMsgSpbpRead
+        return RtmpMsgSetPeerBandwidthRead
     }
     if err = binary.Read(buffer, binary.BigEndian, &pkt.Type); err != nil {
-        return RtmpMsgSpbpRead
+        return RtmpMsgSetPeerBandwidthRead
     }
     return
 }
@@ -508,7 +587,7 @@ func NewRtmpSetChunkSizePacket() RtmpPacket {
 
 func (pkt *RtmpSetChunkSizePacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
     if err = binary.Read(buffer, binary.BigEndian, &pkt.ChunkSize); err != nil {
-        return RtmpMsgSpbpRead
+        return RtmpMsgSetChunkSizeRead
     }
     return
 }
@@ -525,6 +604,79 @@ func (pkt *RtmpSetChunkSizePacket) MessageType() byte {
 }
 
 func (pkt *RtmpSetChunkSizePacket) PerferCid() int {
+    return RTMP_CID_ProtocolControl
+}
+
+/**
+* 5.4. User Control Message (4)
+*
+* for the EventData is 4bytes.
+* Stream Begin(=0)              4-bytes stream ID
+* Stream EOF(=1)                4-bytes stream ID
+* StreamDry(=2)                 4-bytes stream ID
+* SetBufferLength(=3)           8-bytes 4bytes stream ID, 4bytes buffer length.
+* StreamIsRecorded(=4)          4-bytes stream ID
+* PingRequest(=6)               4-bytes timestamp local server time
+* PingResponse(=7)              4-bytes timestamp received ping request.
+*
+* 3.7. User Control message
+* +------------------------------+-------------------------
+* | Event Type ( 2- bytes ) | Event Data
+* +------------------------------+-------------------------
+* Figure 5 Pay load for the ‘User Control Message’.
+*/
+type RtmpUserControlPacket struct {
+    /**
+    * Event type is followed by Event data.
+    * @see: SrcPCUCEventType
+    */
+    EventType int16
+    EventData int32
+    /**
+    * 4bytes if event_type is SetBufferLength; otherwise 0.
+    */
+    ExtraData int32
+}
+
+func NewRtmpUserControlPacket() RtmpPacket {
+    return &RtmpUserControlPacket{}
+}
+
+func (pkt *RtmpUserControlPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = binary.Read(buffer, binary.BigEndian, &pkt.EventType); err != nil {
+        return RtmpMsgUserControlRead
+    }
+    if err = binary.Read(buffer, binary.BigEndian, &pkt.EventData); err != nil {
+        return RtmpMsgUserControlRead
+    }
+    if pkt.EventType == SrcPCUCSetBufferLength {
+        if err = binary.Read(buffer, binary.BigEndian, &pkt.ExtraData); err != nil {
+            return
+        }
+    }
+    return
+}
+
+func (pkt *RtmpUserControlPacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = binary.Write(buffer, binary.BigEndian, pkt.EventType); err != nil {
+        return
+    }
+    if err = binary.Write(buffer, binary.BigEndian, pkt.EventData); err != nil {
+        return
+    }
+    if pkt.EventType == SrcPCUCSetBufferLength {
+        if err = binary.Write(buffer, binary.BigEndian, pkt.ExtraData); err != nil {
+            return
+        }
+    }
+    return
+}
+
+func (pkt *RtmpUserControlPacket) MessageType() byte {
+    return RTMP_MSG_UserControlMessage
+}
+
+func (pkt *RtmpUserControlPacket) PerferCid() int {
     return RTMP_CID_ProtocolControl
 }
 

@@ -354,6 +354,18 @@ func (conn *Conn) OnStatus(streamId int) (err error) {
 	return conn.EnqueueOutgoingMessage(msg)
 }
 
+func (conn *Conn) ResponseStreamBegin(streamId int) (err error) {
+	pkt := NewRtmpUserControlPacket().(*RtmpUserControlPacket)
+	pkt.EventType = SrcPCUCStreamBegin
+	pkt.EventData = int32(streamId)
+
+	var msg *RtmpMessage
+	if msg,err = conn.Protocol.EncodeMessage(pkt, streamId); err != nil {
+		return
+	}
+	return conn.EnqueueOutgoingMessage(msg)
+}
+
 func NewConn(svr *Server, conn *net.TCPConn) *Conn {
 	v := &Conn{
 		Server: svr,

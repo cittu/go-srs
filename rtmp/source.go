@@ -137,3 +137,13 @@ func FindSource(req *protocol.RtmpRequest, logger core.Logger) (source *RtmpSour
 
     return
 }
+
+type RtmpConsumer struct {
+    source *RtmpSource
+}
+
+func NewRtmpConsumer(source *RtmpSource) *RtmpConsumer {
+    return &RtmpConsumer{
+        source: source,
+    }
+}

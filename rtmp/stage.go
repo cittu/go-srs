@@ -200,7 +200,8 @@ func (stage *identifyClientStage) ConsumeMessage(msg *protocol.RtmpMessage) (err
             streamName: string(pkt.StreamName),
             duration: float64(pkt.Duration),
         }
-        return
+        // apply msg on next stage.
+        return stage.conn.Stage.ConsumeMessage(msg)
     case *protocol.RtmpReleaseStreamPacket:
         logger.Info("identify client by releaseStream, fmle publish.")
         if err = stage.conn.ResponseReleaseStream(float64(pkt.TransactionId)); err != nil {
@@ -264,7 +265,8 @@ func (stage *identifyClientCreateStreamStage) ConsumeMessage(msg *protocol.RtmpM
             streamName: string(pkt.StreamName),
             duration: float64(pkt.Duration),
         }
-        return
+        // apply msg on next stage.
+        return stage.conn.Stage.ConsumeMessage(msg)
     case *protocol.RtmpPublishPacket:
         logger.Info("identify client by publish, falsh publish.")
 
@@ -296,13 +298,53 @@ func (stage *playStage) Cleanup() {
 }
 
 func (stage *playStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
+    req := &stage.conn.Request
     logger := stage.conn.Logger
     logger.Trace("client identified, type=Play, stream_name=%s, duration=%.2f", stage.streamName, stage.duration)
 
     // set chunk size to larger.
     // TODO: FIXME: implements it.
 
+    // find a source to serve.
+    var source *RtmpSource
+    if source,err = FindSource(req, logger); err != nil {
+        return
+    }
+    core.AssertNotNil(source)
+
+    enabledCache := false
+    vhostIsEdge := false
+    logger.Trace("source url=%s, ip=%s, cache=%v, is_edge=%v, source_id=%d[%d]",
+        req.StreamUrl(), stage.conn.IoRw.RemoteAddr().String(), enabledCache, vhostIsEdge, source.SrsId, source.SrsId)
+    source.GopCache(enabledCache)
+
+    // response connection start play
+    // StreamBegin
+    if err = stage.conn.ResponseStreamBegin(stage.conn.StreamId); err != nil {
+        logger.Error("send PCUC(StreamBegin) message failed.")
+        return
+    }
+    logger.Info("send PCUC(StreamBegin) message success.")
+
     // TODO: FIXME: implements it.
+
+    logger.Info("start to play stream %v", stage.streamName)
+    stage.conn.Stage = &playingStage{
+        conn: stage.conn,
+        source: source,
+    }
+    return
+}
+
+type playingStage struct {
+    conn *protocol.Conn
+    source *RtmpSource
+}
+
+func (stage *playingStage) Cleanup() {
+}
+
+func (stage *playingStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
     return
 }
 
