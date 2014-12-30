@@ -563,11 +563,11 @@ func EncodeAmf0Any(buffer *bytes.Buffer, v Amf0Any) (err error) {
     case Amf0Undefined:
         err = EncodeAmf0Undefined(buffer)
     case Amf0Object:
-        fallthrough
+        err = v.Encode(buffer)
     case *Amf0Object:
         err = v.Encode(buffer)
     case Amf0EcmaArray:
-        fallthrough
+        err = v.Encode(buffer)
     case *Amf0EcmaArray:
         err = v.Encode(buffer)
     default:

@@ -273,14 +273,17 @@ func NewRtmpConnectAppResPacket(objectEncoding int, serverIp string, srsId int) 
         Props: NewAmf0Object(),
         Info: NewAmf0Object(),
     }
+    v.CommandName = Amf0String(RTMP_AMF0_COMMAND_RESULT)
+    v.TransactionId = Amf0Number(1.0)
+
     v.Props.Set("fmsVer", Amf0String(fmt.Sprintf("FMS/%v", RTMP_SIG_FMS_VER)))
     v.Props.Set("capabilities", Amf0Number(127))
     v.Props.Set("mode", Amf0Number(1))
 
-    v.Props.Set(StatusLevel, Amf0String(StatusLevelStatus))
-    v.Props.Set(StatusCode, Amf0String(StatusCodeConnectSuccess))
-    v.Props.Set(StatusDescription, Amf0String("Connection succeeded"))
-    v.Props.Set("objectEncoding", Amf0Number(objectEncoding))
+    v.Info.Set(StatusLevel, Amf0String(StatusLevelStatus))
+    v.Info.Set(StatusCode, Amf0String(StatusCodeConnectSuccess))
+    v.Info.Set(StatusDescription, Amf0String("Connection succeeded"))
+    v.Info.Set("objectEncoding", Amf0Number(objectEncoding))
 
     data := NewAmf0EcmaArray()
     v.Props.Set("data", data)
@@ -296,7 +299,6 @@ func NewRtmpConnectAppResPacket(objectEncoding int, serverIp string, srsId int) 
     data.Set("srs_email", Amf0String(core.RTMP_SIG_SRS_EMAIL))
     data.Set("srs_copyright", Amf0String(core.RTMP_SIG_SRS_COPYRIGHT))
     data.Set("srs_primary", Amf0String(core.RTMP_SIG_SRS_PRIMARY))
-    data.Set("srs_authors", Amf0String(core.RTMP_SIG_SRS_AUTHROS))
 
     if serverIp != "" {
         data.Set("srs_server_ip", Amf0String(serverIp))

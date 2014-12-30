@@ -255,6 +255,7 @@ type Protocol struct {
 	Logger core.Logger
 	ChunkStreams map[int]*ChunkStream
 	InChunkSize int
+	OutChunkSize int
 }
 
 func NewProtocol(iorw *net.TCPConn, logger core.Logger) *Protocol {
@@ -262,6 +263,7 @@ func NewProtocol(iorw *net.TCPConn, logger core.Logger) *Protocol {
 		IoRw: iorw,
 		Logger: logger,
 		InChunkSize: SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE,
+		OutChunkSize: SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE,
 	}
 	v.ChunkStreams = map[int]*ChunkStream{}
 	return v
@@ -304,6 +306,118 @@ func (proto *Protocol) DecodeMessage(msg *RtmpMessage) (pkt RtmpPacket, err erro
 }
 
 func (proto *Protocol) SendMessage(msg *RtmpMessage) (err error) {
+	hc0 := &bytes.Buffer{}
+	var hc3 *bytes.Buffer = nil
+
+	hasC3Chunk := (int(msg.Header.PayloadLength) > proto.OutChunkSize);
+	if hasC3Chunk {
+		hc3 = &bytes.Buffer{}
+	}
+
+	// write new chunk stream header, fmt is 0
+	if err = hc0.WriteByte(byte(msg.Header.PerferCid & 0x3F)); err != nil {
+		return
+	}
+	if hasC3Chunk {
+		// write no message header chunk stream, fmt is 3
+		// @remark, if perfer_cid > 0x3F, that is, use 2B/3B chunk header,
+		// SRS will rollback to 1B chunk header.
+		if err = hc3.WriteByte(byte(0xC0 | (msg.Header.PerferCid & 0x3F))); err != nil {
+			return
+		}
+	}
+
+	// chunk message header, 11 bytes
+	// timestamp, 3bytes, big-endian
+	timestamp := uint32(msg.Header.Timestamp) & 0x7fffffff
+	if timestamp < RTMP_EXTENDED_TIMESTAMP {
+		if _,err = hc0.Write([]byte{
+			byte(timestamp >> 16),
+			byte(timestamp >> 8),
+			byte(timestamp),
+		}); err != nil {
+			return
+		}
+	} else {
+		if _,err = hc0.Write([]byte{0xFF, 0xFF, 0xFF}); err != nil {
+			return
+		}
+	}
+
+	// message_length, 3bytes, big-endian
+	if _,err = hc0.Write([]byte{
+		byte(msg.Header.PayloadLength >> 16),
+		byte(msg.Header.PayloadLength >> 8),
+		byte(msg.Header.PayloadLength),
+	}); err != nil {
+		return
+	}
+
+	// message_type, 1bytes
+	if err = hc0.WriteByte(byte(msg.Header.MessageType)); err != nil {
+		return
+	}
+
+	// stream_id, 4bytes, little-endian
+	if err = binary.Write(hc0, binary.LittleEndian, msg.Header.StreamId); err != nil {
+		return
+	}
+
+	// for c0
+	// chunk extended timestamp header, 0 or 4 bytes, big-endian
+	//
+	// for c3:
+	// chunk extended timestamp header, 0 or 4 bytes, big-endian
+	// 6.1.3. Extended Timestamp
+	// This field is transmitted only when the normal time stamp in the
+	// chunk message header is set to 0x00ffffff. If normal time stamp is
+	// set to any value less than 0x00ffffff, this field MUST NOT be
+	// present. This field MUST NOT be present if the timestamp field is not
+	// present. Type 3 chunks MUST NOT have this field.
+	// adobe changed for Type3 chunk:
+	//        FMLE always sendout the extended-timestamp,
+	//        must send the extended-timestamp to FMS,
+	//        must send the extended-timestamp to flash-player.
+	// @see: ngx_rtmp_prepare_message
+	// @see: http://blog.csdn.net/win_lin/article/details/13363699
+	// TODO: FIXME: extract to outer.
+	if timestamp >= RTMP_EXTENDED_TIMESTAMP {
+		if err = binary.Write(hc0, binary.BigEndian, timestamp); err != nil {
+			return
+		}
+		if hasC3Chunk {
+			if err = binary.Write(hc3, binary.BigEndian, timestamp); err != nil {
+				return
+			}
+		}
+	}
+
+	var nbSent int32 = 0
+	for nbSent < msg.Header.PayloadLength {
+		if nbSent == 0 {
+			if _,err = proto.IoRw.Write(hc0.Bytes()); err != nil {
+				return
+			}
+			proto.Logger.Info("write %vB c0 header ok", hc0.Len())
+		} else {
+			if _,err = proto.IoRw.Write(hc3.Bytes()); err != nil {
+				return
+			}
+			proto.Logger.Info("write %vB c3 header ok", hc3.Len())
+		}
+
+		payloadSize := msg.Header.PayloadLength - nbSent
+		if payloadSize > int32(proto.OutChunkSize) {
+			payloadSize = int32(proto.OutChunkSize)
+		}
+		if _,err = proto.IoRw.Write(msg.Payload[nbSent : nbSent + payloadSize]); err != nil {
+			return
+		}
+		nbSent += payloadSize
+		proto.Logger.Info("write %vB chunk payload ok, %v/%v", payloadSize, nbSent, msg.Header.PayloadLength)
+	}
+	proto.Logger.Info("send msg ok")
+
 	return
 }
 

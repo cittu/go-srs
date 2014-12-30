@@ -27,23 +27,19 @@ import "fmt"
 
 // server info.
 const (
-    RTMP_SIG_SRS_KEY = "SRS"
+    RTMP_SIG_SRS_KEY = "GOSRS"
     RTMP_SIG_SRS_ROLE = "origin/edge server"
     RTMP_SIG_SRS_NAME = RTMP_SIG_SRS_KEY + "(Simple RTMP Server)"
-    RTMP_SIG_SRS_URL_SHORT = "github.com/winlinvip/simple-rtmp-server"
+    RTMP_SIG_SRS_URL_SHORT = "github.com/winlinvip/go-srs"
     RTMP_SIG_SRS_URL = "https://" + RTMP_SIG_SRS_URL_SHORT
     RTMP_SIG_SRS_WEB = "http://blog.csdn.net/win_lin"
     RTMP_SIG_SRS_EMAIL = "winlin@vip.126.com"
     RTMP_SIG_SRS_LICENSE = "The MIT License (MIT)"
     RTMP_SIG_SRS_COPYRIGHT = "Copyright (c) 2013-2014 winlin"
     RTMP_SIG_SRS_PRIMARY = "winlin"
-    RTMP_SIG_SRS_AUTHROS = "wenjie.zhao"
-    RTMP_SIG_SRS_CONTRIBUTORS_URL = "/blob/master/AUTHORS.txt"
-    RTMP_SIG_SRS_RELEASE = RTMP_SIG_SRS_URL + "/tree/1.0release"
-    RTMP_SIG_SRS_HTTP_SERVER = RTMP_SIG_SRS_URL + "/wiki/v1_CN_HTTPServer#feature"
 )
 
-var RTMP_SIG_SRS_VERSION = fmt.Sprint("%v.%v.%v", Major, Minor, Revision)
+var RTMP_SIG_SRS_VERSION = fmt.Sprintf("%v.%v.%v", Major, Minor, Revision)
 var RTMP_SIG_SRS_HANDSHAKE = RTMP_SIG_SRS_KEY + "(" + RTMP_SIG_SRS_VERSION + ")"
 func RTMP_SIG_SRS_ISSUES(id int) string {
     return fmt.Sprint("%v/issues/%v", RTMP_SIG_SRS_URL, id)
