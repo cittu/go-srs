@@ -25,12 +25,13 @@ package protocol
 
 import (
 	"net"
-	"github.com/winlinvip/go-srs/core"
 	"math/rand"
 	"time"
 	"runtime"
 	"io"
 	"errors"
+	"sync"
+	"github.com/winlinvip/go-srs/core"
 )
 
 var RtmpInChannelMsg = errors.New("put msg to channel failed")
@@ -46,6 +47,10 @@ type Conn struct {
 	Protocol *Protocol // the protocol stack.
 	Stage Stage // the stage of connection.
 	Request RtmpRequest // the request of client
+	// quit sync
+	Quited bool
+	QuitLock sync.Mutex
+	QuitChannel chan int // the quit signal for connection serve cycle
 }
 
 func (conn *Conn) Serve() {
@@ -57,7 +62,19 @@ func (conn *Conn) Serve() {
 			buf = buf[:runtime.Stack(buf, false)]
 			conn.Logger.Error("rtmp: panic serving %v\n%v\n%s", conn.IoRw.RemoteAddr(), err, buf)
 		}
-		conn.IoRw.Close()
+
+		// quit.
+		func(){
+			conn.QuitLock.Lock()
+			defer conn.QuitLock.Unlock()
+
+			conn.IoRw.Close()
+			close(conn.InChannel)
+			close(conn.OutChannel)
+			close(conn.QuitChannel)
+			conn.Quited = true
+			conn.Logger.Info("conn quit")
+		}()
 	}()
 	conn.Logger.Trace("serve client ip=%v", conn.IoRw.RemoteAddr().String())
 
@@ -77,58 +94,26 @@ func (conn *Conn) Serve() {
 	// set stage to connect app.
 	conn.Stage = conn.Server.Factory.NewConnectStage(conn)
 
-	// pump message goroutine
+	// pump and send message goroutine
 	go conn.pumpMessage()
+	go conn.sendMessage()
 
 	// rtmp msg loop
-	if err := conn.messageCycle(); err != nil {
+	if err := conn.recvMessage(); err != nil {
 		conn.Logger.Error("message cycle failed, err is %v", err)
 		return
 	}
 	conn.Logger.Trace("serve conn ok")
 }
 
-func (conn *Conn) SetWindowAckSize(ackSize int) (err error) {
-	var msg *RtmpMessage
-	if msg,err = conn.Protocol.EncodeMessage(NewRtmpSetWindowAckSizePacket(ackSize), 0); err != nil {
-		return
-	}
-	conn.OutChannel <- msg
-	return
-}
-
-func (conn *Conn) SetPeerBandwidth(bandwidth, _type int) (err error) {
-	var msg *RtmpMessage
-	if msg,err = conn.Protocol.EncodeMessage(NewRtmpSetPeerBandwidthPacket(bandwidth, _type), 0); err != nil {
-		return
-	}
-	conn.OutChannel <- msg
-	return
-}
-
-func (conn *Conn) OnBwDone() (err error) {
-	var msg *RtmpMessage
-	if msg,err = conn.Protocol.EncodeMessage(NewRtmpOnBWDonePacket(), 0); err != nil {
-		return
-	}
-	conn.OutChannel <- msg
-	return
-}
-
-func (conn *Conn) ResponseConnectApp(objectEncoding int, serverIp string) (err error) {
-	var msg *RtmpMessage
-	if msg,err = conn.Protocol.EncodeMessage(NewRtmpConnectAppResPacket(objectEncoding, serverIp, conn.SrsId), 0); err != nil {
-		return
-	}
-	conn.OutChannel <- msg
-	return
-}
-
-func (conn *Conn) messageCycle() (err error) {
+func (conn *Conn) recvMessage() (err error) {
 	for {
 		select {
+			// when got quit messgae
+		case <- conn.QuitChannel:
+			return
 			// when incoming message, process it.
-		case msg,ok := <- conn.InChannel:
+		case msg, ok := <-conn.InChannel:
 			if !ok {
 				return
 			}
@@ -137,13 +122,47 @@ func (conn *Conn) messageCycle() (err error) {
 				return
 			}
 			continue
+		}
+	}
+}
+
+func (conn *Conn) sendMessage() (err error) {
+	defer func(){
+		// any error for each connection msg pump must be recover
+		if err := recover(); err != nil {
+			const size = 64 << 10
+			buf := make([]byte, size)
+			buf = buf[:runtime.Stack(buf, false)]
+			conn.Logger.Error("rtmp: panic send message %v\n%v\n%s", conn.IoRw.RemoteAddr(), err, buf)
+		}
+
+		func(){
+			conn.QuitLock.Lock()
+			defer conn.QuitLock.Unlock()
+
+			if !conn.Quited {
+				conn.Logger.Info("send goroutine signal quit channel")
+				conn.QuitChannel <- 101
+			} else {
+				conn.Logger.Info("send goroutine siliently quit")
+			}
+		}()
+
+		conn.Logger.Info("stop send rtmp messages")
+	}()
+	conn.Logger.Info("start send rtmp messages")
+
+	for {
+		select {
 			// when got msg to send, send it immeidately.
 		case msg,ok := <- conn.OutChannel:
 			if !ok {
 				return
 			}
 			conn.Logger.Info("send msg %v", msg)
-			// TODO: FIXME: to sendout the msg.
+			if err = conn.Protocol.SendMessage(msg); err != nil {
+				return
+			}
 			continue
 		}
 	}
@@ -159,8 +178,17 @@ func (conn *Conn) pumpMessage() {
 			conn.Logger.Error("rtmp: panic pump message %v\n%v\n%s", conn.IoRw.RemoteAddr(), err, buf)
 		}
 
-		conn.Logger.Info("close the incoming channel")
-		close(conn.InChannel)
+		func(){
+			conn.QuitLock.Lock()
+			defer conn.QuitLock.Unlock()
+
+			if !conn.Quited {
+				conn.Logger.Info("pump goroutine signal quit channel")
+				conn.QuitChannel <- 100
+			} else {
+				conn.Logger.Info("pump goroutine siliently quit")
+			}
+		}()
 
 		conn.Logger.Info("stop pump rtmp messages")
 	}()
@@ -180,9 +208,82 @@ func (conn *Conn) pumpMessage() {
 			continue
 		}
 
-		conn.Logger.Info("incoming msg")
-		conn.InChannel <- msg
+		if err = conn.EnqueueIncomingMessage(msg); err != nil {
+			return
+		}
 	}
+}
+
+func (conn *Conn) EnqueueIncomingMessage(msg *RtmpMessage) (err error) {
+	conn.QuitLock.Lock()
+	defer conn.QuitLock.Unlock()
+
+	// already quited, drop messgae
+	if conn.Quited {
+		conn.Logger.Info("drop incoming msg for quited")
+		return
+	}
+
+	select {
+	case conn.InChannel <- msg:
+		break
+	default:
+		conn.Logger.Warn("drop incoming msg for channel full")
+		break
+	}
+	return
+}
+
+func (conn *Conn) EnqueueOutgoingMessage(msg *RtmpMessage) (err error) {
+	conn.QuitLock.Lock()
+	defer conn.QuitLock.Unlock()
+
+	// already quited, drop messgae
+	if conn.Quited {
+		conn.Logger.Info("drop outgoing msg for quited")
+		return
+	}
+
+	select {
+	case conn.OutChannel <- msg:
+		break
+	default:
+		conn.Logger.Warn("drop message for channel full")
+		break
+	}
+	return
+}
+
+func (conn *Conn) SetWindowAckSize(ackSize int) (err error) {
+	var msg *RtmpMessage
+	if msg,err = conn.Protocol.EncodeMessage(NewRtmpSetWindowAckSizePacket(ackSize), 0); err != nil {
+		return
+	}
+	return conn.EnqueueOutgoingMessage(msg)
+}
+
+func (conn *Conn) SetPeerBandwidth(bandwidth, _type int) (err error) {
+	var msg *RtmpMessage
+	if msg,err = conn.Protocol.EncodeMessage(NewRtmpSetPeerBandwidthPacket(bandwidth, _type), 0); err != nil {
+		return
+	}
+	return conn.EnqueueOutgoingMessage(msg)
+}
+
+func (conn *Conn) OnBwDone() (err error) {
+	var msg *RtmpMessage
+	if msg,err = conn.Protocol.EncodeMessage(NewRtmpOnBWDonePacket(), 0); err != nil {
+		return
+	}
+	return conn.EnqueueOutgoingMessage(msg)
+}
+
+func (conn *Conn) ResponseConnectApp(objectEncoding int, serverIp string) (err error) {
+	var msg *RtmpMessage
+	if msg,err = conn.Protocol.EncodeMessage(NewRtmpConnectAppResPacket(objectEncoding, serverIp, conn.SrsId), 0); err != nil {
+		return
+	}
+	return conn.EnqueueOutgoingMessage(msg)
 }
 
 func NewConn(svr *Server, conn *net.TCPConn) *Conn {
@@ -199,6 +300,10 @@ func NewConn(svr *Server, conn *net.TCPConn) *Conn {
 	// TODO: FIXME: channel with buffer
 	v.InChannel = make(chan *RtmpMessage)
 	v.OutChannel = make(chan *RtmpMessage)
+
+	// quit sync
+	v.Quited = false
+	v.QuitChannel = make(chan int, 2)
 
 	// initialize the protocol stack.
 	v.Protocol = NewProtocol(conn, v.Logger)

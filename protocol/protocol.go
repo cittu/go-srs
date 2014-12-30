@@ -303,6 +303,10 @@ func (proto *Protocol) DecodeMessage(msg *RtmpMessage) (pkt RtmpPacket, err erro
 	return
 }
 
+func (proto *Protocol) SendMessage(msg *RtmpMessage) (err error) {
+	return
+}
+
 func (proto *Protocol) PumpMessage() (msg *RtmpMessage, err error) {
 	var fmt byte
 	var cid int
