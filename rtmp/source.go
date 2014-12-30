@@ -34,9 +34,10 @@ type RtmpSource struct {
     SrsId int
 }
 
-func NewRtmpSource(req *protocol.RtmpRequest) *RtmpSource {
+func NewRtmpSource(req *protocol.RtmpRequest, logger core.Logger) *RtmpSource {
     return &RtmpSource{
         Req: req,
+        Logger: logger,
     }
 }
 
@@ -72,28 +73,42 @@ func (source *RtmpSource) SourceId(srsId int) {
 }
 
 func (source *RtmpSource) OnMessage(msg *protocol.RtmpMessage) (err error) {
+    // for edge, directly proxy message to origin.
+    // TODO: FIXME: implements it.
+
     // process audio packet
     if msg.Header.IsAudio() {
         if err = source.OnAudio(msg); err != nil {
+            source.Logger.Error("source process audio message failed")
             return
         }
     }
 
     // process video packet
     if msg.Header.IsVideo() {
+        if err = source.OnVideo(msg); err != nil {
+            source.Logger.Error("source process video message failed")
+            return
+        }
     }
 
     // process aggregate packet
     if msg.Header.IsAggregate() {
+        // TODO: FIXME: implements it.
     }
 
     // process onMetaData
     if msg.Header.IsAmf0Data() || msg.Header.IsAmf3Data() {
+        // TODO: FIXME: implements it.
     }
     return
 }
 
 func (source *RtmpSource) OnAudio(msg *protocol.RtmpMessage) (err error) {
+    return
+}
+
+func (source *RtmpSource) OnVideo(msg *protocol.RtmpMessage) (err error) {
     return
 }
 
@@ -106,7 +121,7 @@ func FindSource(req *protocol.RtmpRequest, logger core.Logger) (source *RtmpSour
     url := req.StreamUrl()
 
     if _,ok := sources[url]; !ok {
-        source = NewRtmpSource(req)
+        source = NewRtmpSource(req, logger)
         if err = source.Initialize(); err != nil {
             return
         }
