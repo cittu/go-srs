@@ -30,7 +30,6 @@ import (
 	"runtime"
 	"io"
 	"errors"
-	"sync"
 	"github.com/winlinvip/go-srs/core"
 )
 
@@ -44,13 +43,10 @@ type Conn struct {
 	Rand *rand.Rand // the random to generate the handshake bytes.
 	InChannel chan *RtmpMessage // the incoming messages channel
 	OutChannel chan *RtmpMessage // the outgoing messages channel
+	SendQuitChannel chan int // the quit signal for connection serve cycle
 	Protocol *Protocol // the protocol stack.
 	Stage Stage // the stage of connection.
 	Request RtmpRequest // the request of client
-	// quit sync
-	Quited bool
-	QuitLock sync.Mutex
-	QuitChannel chan int // the quit signal for connection serve cycle
 }
 
 func (conn *Conn) Serve() {
@@ -63,18 +59,12 @@ func (conn *Conn) Serve() {
 			conn.Logger.Error("rtmp: panic serving %v\n%v\n%s", conn.IoRw.RemoteAddr(), err, buf)
 		}
 
-		// quit.
-		func(){
-			conn.QuitLock.Lock()
-			defer conn.QuitLock.Unlock()
+		// the out channel is write by this goroutine only
+		close(conn.OutChannel)
 
-			conn.IoRw.Close()
-			close(conn.InChannel)
-			close(conn.OutChannel)
-			close(conn.QuitChannel)
-			conn.Quited = true
-			conn.Logger.Info("conn quit")
-		}()
+		// quit.
+		conn.IoRw.Close()
+		conn.Logger.Info("conn quit")
 	}()
 	conn.Logger.Trace("serve client ip=%v", conn.IoRw.RemoteAddr().String())
 
@@ -109,11 +99,12 @@ func (conn *Conn) Serve() {
 func (conn *Conn) recvMessage() (err error) {
 	for {
 		select {
-			// when got quit messgae
-		case <- conn.QuitChannel:
+			// the send message goroutine will close this channel when error
+		case <- conn.SendQuitChannel:
 			return
 			// when incoming message, process it.
-		case msg, ok := <-conn.InChannel:
+			// the pump message goroutine will close this channel when error
+		case msg, ok := <- conn.InChannel:
 			if !ok {
 				return
 			}
@@ -136,17 +127,8 @@ func (conn *Conn) sendMessage() (err error) {
 			conn.Logger.Error("rtmp: panic send message %v\n%v\n%s", conn.IoRw.RemoteAddr(), err, buf)
 		}
 
-		func(){
-			conn.QuitLock.Lock()
-			defer conn.QuitLock.Unlock()
-
-			if !conn.Quited {
-				conn.Logger.Info("send goroutine signal quit channel")
-				conn.QuitChannel <- 101
-			} else {
-				conn.Logger.Info("send goroutine siliently quit")
-			}
-		}()
+		// the quit channel is write by this goroutine only
+		close(conn.SendQuitChannel)
 
 		conn.Logger.Info("stop send rtmp messages")
 	}()
@@ -178,17 +160,8 @@ func (conn *Conn) pumpMessage() {
 			conn.Logger.Error("rtmp: panic pump message %v\n%v\n%s", conn.IoRw.RemoteAddr(), err, buf)
 		}
 
-		func(){
-			conn.QuitLock.Lock()
-			defer conn.QuitLock.Unlock()
-
-			if !conn.Quited {
-				conn.Logger.Info("pump goroutine signal quit channel")
-				conn.QuitChannel <- 100
-			} else {
-				conn.Logger.Info("pump goroutine siliently quit")
-			}
-		}()
+		// the in channel is write by this goroutine only
+		close(conn.InChannel)
 
 		conn.Logger.Info("stop pump rtmp messages")
 	}()
@@ -208,42 +181,17 @@ func (conn *Conn) pumpMessage() {
 			continue
 		}
 
-		if err = conn.EnqueueIncomingMessage(msg); err != nil {
-			return
+		select {
+		case conn.InChannel <- msg:
+			break
+		default:
+			conn.Logger.Warn("drop incoming msg for channel full")
+			break
 		}
 	}
 }
 
-func (conn *Conn) EnqueueIncomingMessage(msg *RtmpMessage) (err error) {
-	conn.QuitLock.Lock()
-	defer conn.QuitLock.Unlock()
-
-	// already quited, drop messgae
-	if conn.Quited {
-		conn.Logger.Info("drop incoming msg for quited")
-		return
-	}
-
-	select {
-	case conn.InChannel <- msg:
-		break
-	default:
-		conn.Logger.Warn("drop incoming msg for channel full")
-		break
-	}
-	return
-}
-
 func (conn *Conn) EnqueueOutgoingMessage(msg *RtmpMessage) (err error) {
-	conn.QuitLock.Lock()
-	defer conn.QuitLock.Unlock()
-
-	// already quited, drop messgae
-	if conn.Quited {
-		conn.Logger.Info("drop outgoing msg for quited")
-		return
-	}
-
 	select {
 	case conn.OutChannel <- msg:
 		break
@@ -298,12 +246,9 @@ func NewConn(svr *Server, conn *net.TCPConn) *Conn {
 	v.Logger = svr.Factory.CreateLogger("conn", v.SrsId)
 
 	// TODO: FIXME: channel with buffer
-	v.InChannel = make(chan *RtmpMessage)
-	v.OutChannel = make(chan *RtmpMessage)
-
-	// quit sync
-	v.Quited = false
-	v.QuitChannel = make(chan int, 2)
+	v.InChannel = make(chan *RtmpMessage, 1024)
+	v.OutChannel = make(chan *RtmpMessage, 1024)
+	v.SendQuitChannel = make(chan int)
 
 	// initialize the protocol stack.
 	v.Protocol = NewProtocol(conn, v.Logger)
