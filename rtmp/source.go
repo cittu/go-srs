@@ -43,6 +43,10 @@ func (source *RtmpSource) Initialize() (err error) {
     return
 }
 
+func (source *RtmpSource) OnMessage(msg *protocol.RtmpMessage) (err error) {
+    return
+}
+
 func (source *RtmpSource) GopCache(enabledCache bool) {
     // TODO: FIXME: implements it.
 }

@@ -427,8 +427,7 @@ func (stage *fmlePublishingStage) ConsumeMessage(msg *protocol.RtmpMessage) (err
     }
 
     // video, audio, data message
-
-    return
+    return stage.source.OnMessage(msg)
 }
 
 /**
