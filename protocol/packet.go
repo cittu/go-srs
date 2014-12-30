@@ -118,6 +118,16 @@ func DiscoveryPacket(msg *RtmpMessage, logger core.Logger) (b []byte, pkt RtmpPa
         case RTMP_AMF0_COMMAND_RELEASE_STREAM:
             logger.Info("decode the AMF0/AMF3 command(FMLE releaseStream message).")
             pkt = NewRtmpFMLEStartPacket()
+        case RTMP_AMF0_COMMAND_PUBLISH:
+            logger.Info("decode the AMF0/AMF3 command(publish message).")
+            pkt = NewRtmpPublishPacket()
+        default:
+            if header.IsAmf0Command() || header.IsAmf3Command() {
+                logger.Info("decode the AMF0/AMF3 call message.")
+                pkt = NewRtmpCallPacket()
+            } else {
+                logger.Info("drop the AMF0/AMF3 command message, command_name=%v", command)
+            }
         }
     } else if header.IsUserControlMessage() {
     } else if header.IsWindowAckledgementSize() {
@@ -340,6 +350,10 @@ type RtmpCallPacket struct {
     * @remark, optional, init to and maybe nil.
     */
     Arguments Amf0Any
+}
+
+func NewRtmpCallPacket() *RtmpCallPacket {
+    return &RtmpCallPacket{}
 }
 
 func (pkt *RtmpCallPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
@@ -893,4 +907,87 @@ func (pkt *RtmpFMLEStartResPacket) MessageType() byte {
 
 func (pkt *RtmpFMLEStartResPacket) PerferCid() int {
     return RTMP_CID_OverConnection
+}
+
+/**
+* FMLE/flash publish
+* 4.2.6. Publish
+* The client sends the publish command to publish a named stream to the
+* server. Using this name, any client can play this stream and receive
+* the published audio, video, and data messages.
+*/
+type RtmpPublishPacket struct {
+    rtmpCommonCallPacket
+    /**
+    * Command information object does not exist. Set to null type.
+    * @remark, never be NULL, an AMF0 null instance.
+    */
+    CommandObject Amf0Null
+    /**
+    * Name with which the stream is published.
+    */
+    StreamName Amf0String
+    /**
+    * Type of publishing. Set to “live”, “record”, or “append”.
+    *   record: The stream is published and the data is recorded to a new file.The file
+    *           is stored on the server in a subdirectory within the directory that
+    *           contains the server application. If the file already exists, it is
+    *           overwritten.
+    *   append: The stream is published and the data is appended to a file. If no file
+    *           is found, it is created.
+    *   live: Live data is published without recording it in a file.
+    * @remark, SRS only support live.
+    * @remark, optional, default to live.
+    */
+    StreamType Amf0String
+}
+
+func NewRtmpPublishPacket() RtmpPacket {
+    v := &RtmpPublishPacket{}
+    v.CommandName = Amf0String(RTMP_AMF0_COMMAND_PUBLISH)
+    v.TransactionId = Amf0Number(0.0)
+    v.StreamType = Amf0String("live")
+    return v
+}
+
+func (pkt *RtmpPublishPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = pkt.rtmpCommonCallPacket.Decode(buffer, logger); err != nil {
+        return
+    }
+    if err = DecodeAmf0Null(buffer); err != nil {
+        return
+    }
+    if pkt.StreamName,err = DecodeAmf0String(buffer); err != nil {
+        return
+    }
+    if buffer.Len() > 0 {
+        if pkt.StreamType,err = DecodeAmf0String(buffer); err != nil {
+            return
+        }
+    }
+    return
+}
+
+func (pkt *RtmpPublishPacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = pkt.rtmpCommonCallPacket.Encode(buffer, logger); err != nil {
+        return
+    }
+    if err = EncodeAmf0Null(buffer); err != nil {
+        return
+    }
+    if err = EncodeAmf0String(buffer, pkt.StreamName); err != nil {
+        return
+    }
+    if err = EncodeAmf0String(buffer, pkt.StreamType); err != nil {
+        return
+    }
+    return
+}
+
+func (pkt *RtmpPublishPacket) MessageType() byte {
+    return RTMP_MSG_AMF0CommandMessage
+}
+
+func (pkt *RtmpPublishPacket) PerferCid() int {
+    return RTMP_CID_OverStream
 }

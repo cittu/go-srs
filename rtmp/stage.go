@@ -165,6 +165,19 @@ func (stage *identifyClientStage) ConsumeMessage(msg *protocol.RtmpMessage) (err
 
         // use next stage.
         stage.conn.Stage = &identifyClientCreateStreamStage{conn: stage.conn,}
+        return
+    case *protocol.RtmpPlayPacket:
+        logger.Info("level0 identify client by play.")
+        logger.Info("identity client type=play, stream_name=%v, duration=%.2f", pkt.StreamName, pkt.Duration)
+
+        // use next stage.
+        stage.conn.Stage = &playStage{
+            conn: stage.conn,
+            clientType: SrsRtmpConnPlay,
+            streamName: string(pkt.StreamName),
+            duration: float64(pkt.Duration),
+        }
+        return
     case *protocol.RtmpFMLEStartPacket:
         logger.Info("identify client by releaseStream, fmle publish.")
         if err = stage.conn.ResponseFMLEStart(float64(pkt.TransactionId)); err != nil {
@@ -179,6 +192,15 @@ func (stage *identifyClientStage) ConsumeMessage(msg *protocol.RtmpMessage) (err
             clientType: SrsRtmpConnFMLEPublish,
             streamName: string(pkt.StreamName),
         }
+        return
+    case *protocol.RtmpCallPacket:
+        // call msg,
+        // support response null first,
+        // @see https://github.com/winlinvip/simple-rtmp-server/issues/106
+        // TODO: FIXME: response in right way, or forward in edge mode.
+        return
+    default:
+        logger.Trace("ignore AMF0/AMF3 command message.")
     }
 
     // use next stage.
@@ -203,7 +225,8 @@ func (stage *identifyClientCreateStreamStage) ConsumeMessage(msg *protocol.RtmpM
         return
     }
 
-    if pkt,ok := pkt.(*protocol.RtmpPlayPacket); ok {
+    switch pkt := pkt.(type) {
+    case *protocol.RtmpPlayPacket:
         logger.Info("identity client type=play, stream_name=%v, duration=%.2f", pkt.StreamName, pkt.Duration)
 
         // use next stage.
@@ -213,6 +236,19 @@ func (stage *identifyClientCreateStreamStage) ConsumeMessage(msg *protocol.RtmpM
             streamName: string(pkt.StreamName),
             duration: float64(pkt.Duration),
         }
+        return
+    case *protocol.RtmpPublishPacket:
+        logger.Info("identify client by publish, falsh publish.")
+
+        // use next stage.
+        stage.conn.Stage = &flashPublishStage{
+            conn: stage.conn,
+            clientType: SrsRtmpConnFlashPublish,
+            streamName: string(pkt.StreamName),
+        }
+        return
+    case *protocol.RtmpCreateStreamPacket:
+        logger.Info("identify client by create stream, play or flash publish.")
         return
     }
 
@@ -238,6 +274,17 @@ type fmlePublishStage struct {
 }
 
 func (stage *fmlePublishStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
+    // TODO: FIXME: implements it.
+    return
+}
+
+type flashPublishStage struct {
+    conn *protocol.Conn
+    clientType int
+    streamName string
+}
+
+func (stage *flashPublishStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
     // TODO: FIXME: implements it.
     return
 }
