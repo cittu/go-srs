@@ -31,6 +31,8 @@ import (
 	"io"
 	"errors"
 	"github.com/winlinvip/go-srs/core"
+	"fmt"
+	"os"
 )
 
 var RtmpInChannelMsg = errors.New("put msg to channel failed")
@@ -236,8 +238,43 @@ func (conn *Conn) OnBwDone() (err error) {
 }
 
 func (conn *Conn) ResponseConnectApp(objectEncoding int, serverIp string) (err error) {
+	v := NewRtmpConnectAppResPacket().(*RtmpConnectAppResPacket)
+	v.CommandName = Amf0String(RTMP_AMF0_COMMAND_RESULT)
+	v.TransactionId = Amf0Number(1.0)
+
+	v.Props.Set("fmsVer", Amf0String(fmt.Sprintf("FMS/%v", RTMP_SIG_FMS_VER)))
+	v.Props.Set("capabilities", Amf0Number(127))
+	v.Props.Set("mode", Amf0Number(1))
+
+	v.Info.Set(StatusLevel, Amf0String(StatusLevelStatus))
+	v.Info.Set(StatusCode, Amf0String(StatusCodeConnectSuccess))
+	v.Info.Set(StatusDescription, Amf0String("Connection succeeded"))
+	v.Info.Set("objectEncoding", Amf0Number(objectEncoding))
+
+	data := NewAmf0EcmaArray()
+	v.Info.Set("data", data)
+	data.Set("version", Amf0String(RTMP_SIG_FMS_VER))
+	data.Set("srs_sig", Amf0String(core.RTMP_SIG_SRS_KEY))
+	data.Set("srs_server", Amf0String(fmt.Sprintf("%v %v (%v)",
+			core.RTMP_SIG_SRS_KEY, core.RTMP_SIG_SRS_VERSION, core.RTMP_SIG_SRS_URL_SHORT)))
+	data.Set("srs_license", Amf0String(core.RTMP_SIG_SRS_LICENSE))
+	data.Set("srs_role", Amf0String(core.RTMP_SIG_SRS_ROLE))
+	data.Set("srs_url", Amf0String(core.RTMP_SIG_SRS_URL))
+	data.Set("srs_version", Amf0String(core.RTMP_SIG_SRS_VERSION))
+	data.Set("srs_site", Amf0String(core.RTMP_SIG_SRS_WEB))
+	data.Set("srs_email", Amf0String(core.RTMP_SIG_SRS_EMAIL))
+	data.Set("srs_copyright", Amf0String(core.RTMP_SIG_SRS_COPYRIGHT))
+	data.Set("srs_primary", Amf0String(core.RTMP_SIG_SRS_PRIMARY))
+
+	if serverIp != "" {
+		data.Set("srs_server_ip", Amf0String(serverIp))
+	}
+	// for edge to directly get the id of client.
+	data.Set("srs_pid", Amf0Number(os.Getpid()))
+	data.Set("srs_id", Amf0Number(conn.SrsId))
+
 	var msg *RtmpMessage
-	if msg,err = conn.Protocol.EncodeMessage(NewRtmpConnectAppResPacket(objectEncoding, serverIp, conn.SrsId), 0); err != nil {
+	if msg,err = conn.Protocol.EncodeMessage(v, 0); err != nil {
 		return
 	}
 	return conn.EnqueueOutgoingMessage(msg)

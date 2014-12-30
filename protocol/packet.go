@@ -28,8 +28,6 @@ import (
     "bytes"
     "encoding/binary"
     "errors"
-    "fmt"
-    "os"
 )
 
 var RtmpMsgSwaspRead = errors.New("decode ack window size failed.")
@@ -281,45 +279,11 @@ type RtmpConnectAppResPacket struct {
     Info *Amf0Object
 }
 
-func NewRtmpConnectAppResPacket(objectEncoding int, serverIp string, srsId int) RtmpPacket {
+func NewRtmpConnectAppResPacket() RtmpPacket {
     v := &RtmpConnectAppResPacket{
         Props: NewAmf0Object(),
         Info: NewAmf0Object(),
     }
-    v.CommandName = Amf0String(RTMP_AMF0_COMMAND_RESULT)
-    v.TransactionId = Amf0Number(1.0)
-
-    v.Props.Set("fmsVer", Amf0String(fmt.Sprintf("FMS/%v", RTMP_SIG_FMS_VER)))
-    v.Props.Set("capabilities", Amf0Number(127))
-    v.Props.Set("mode", Amf0Number(1))
-
-    v.Info.Set(StatusLevel, Amf0String(StatusLevelStatus))
-    v.Info.Set(StatusCode, Amf0String(StatusCodeConnectSuccess))
-    v.Info.Set(StatusDescription, Amf0String("Connection succeeded"))
-    v.Info.Set("objectEncoding", Amf0Number(objectEncoding))
-
-    data := NewAmf0EcmaArray()
-    v.Info.Set("data", data)
-    data.Set("version", Amf0String(RTMP_SIG_FMS_VER))
-    data.Set("srs_sig", Amf0String(core.RTMP_SIG_SRS_KEY))
-    data.Set("srs_server", Amf0String(fmt.Sprintf("%v %v (%v)",
-        core.RTMP_SIG_SRS_KEY, core.RTMP_SIG_SRS_VERSION, core.RTMP_SIG_SRS_URL_SHORT)))
-    data.Set("srs_license", Amf0String(core.RTMP_SIG_SRS_LICENSE))
-    data.Set("srs_role", Amf0String(core.RTMP_SIG_SRS_ROLE))
-    data.Set("srs_url", Amf0String(core.RTMP_SIG_SRS_URL))
-    data.Set("srs_version", Amf0String(core.RTMP_SIG_SRS_VERSION))
-    data.Set("srs_site", Amf0String(core.RTMP_SIG_SRS_WEB))
-    data.Set("srs_email", Amf0String(core.RTMP_SIG_SRS_EMAIL))
-    data.Set("srs_copyright", Amf0String(core.RTMP_SIG_SRS_COPYRIGHT))
-    data.Set("srs_primary", Amf0String(core.RTMP_SIG_SRS_PRIMARY))
-
-    if serverIp != "" {
-        data.Set("srs_server_ip", Amf0String(serverIp))
-    }
-    // for edge to directly get the id of client.
-    data.Set("srs_pid", Amf0Number(os.Getpid()))
-    data.Set("srs_id", Amf0Number(srsId))
-
     return v
 }
 
