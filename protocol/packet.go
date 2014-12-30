@@ -228,6 +228,17 @@ func (pkt *RtmpConnectAppPacket) Decode(buffer *bytes.Buffer, logger core.Logger
 }
 
 func (pkt *RtmpConnectAppPacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = pkt.rtmpCommonCallPacket.Encode(buffer, logger); err != nil {
+        return
+    }
+    if err = pkt.CommandObject.Encode(buffer); err != nil {
+        return
+    }
+    if pkt.Arguments != nil {
+        if err = pkt.Arguments.Encode(buffer); err != nil {
+            return
+        }
+    }
     return
 }
 
@@ -353,10 +364,28 @@ type RtmpCallPacket struct {
 }
 
 func (pkt *RtmpCallPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = pkt.rtmpCommonCallPacket.Decode(buffer, logger); err != nil {
+        return
+    }
+    if pkt.CommandObject,err = DecodeAmf0Any(buffer); err != nil {
+        return
+    }
+    if pkt.Arguments,err = DecodeAmf0Any(buffer); err != nil {
+        return
+    }
     return
 }
 
 func (pkt *RtmpCallPacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = pkt.rtmpCommonCallPacket.Encode(buffer, logger); err != nil {
+        return
+    }
+    if err = EncodeAmf0Any(buffer, pkt.CommandObject); err != nil {
+        return
+    }
+    if err = EncodeAmf0Any(buffer, pkt.Arguments); err != nil {
+        return
+    }
     return
 }
 
@@ -391,6 +420,9 @@ func (pkt *RtmpSetWindowAckSizePacket) Decode(buffer *bytes.Buffer, logger core.
 }
 
 func (pkt *RtmpSetWindowAckSizePacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = binary.Write(buffer, binary.BigEndian, pkt.AckowledgementWindowSize); err != nil {
+        return
+    }
     return
 }
 
@@ -431,6 +463,12 @@ func (pkt *RtmpSetPeerBandwidthPacket) Decode(buffer *bytes.Buffer, logger core.
 }
 
 func (pkt *RtmpSetPeerBandwidthPacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = binary.Write(buffer, binary.BigEndian, pkt.Bandwidth); err != nil {
+        return
+    }
+    if err = binary.Write(buffer, binary.BigEndian, pkt.Type); err != nil {
+        return
+    }
     return
 }
 
@@ -471,6 +509,12 @@ func (pkt *RtmpOnBWDonePacket) Decode(buffer *bytes.Buffer, logger core.Logger) 
 }
 
 func (pkt *RtmpOnBWDonePacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = pkt.rtmpCommonCallPacket.Encode(buffer, logger); err != nil {
+        return
+    }
+    if err = EncodeAmf0Any(buffer, pkt.Args); err != nil {
+        return
+    }
     return
 }
 
