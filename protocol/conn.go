@@ -94,16 +94,15 @@ func (conn *Conn) Serve() {
 
 	// rtmp msg loop
 	for {
-		if err := conn.recvMessage(); err != nil {
-			if err == RtmpControlRepublish {
-				conn.Stage = conn.Server.Factory.NewIdenfityStage(conn)
-				conn.Logger.Trace("control message(unpublish) accept, retry stream service.")
-				continue
-			}
-
-			conn.Logger.Error("message cycle failed, err is %v", err)
-			break
+		err := conn.recvMessage()
+		if err == RtmpControlRepublish {
+			conn.Stage = conn.Server.Factory.NewIdenfityStage(conn)
+			conn.Logger.Trace("control message(unpublish) accept, retry stream service.")
+			continue
 		}
+
+		conn.Logger.Error("message cycle failed, err is %v", err)
+		break
 	}
 	conn.Logger.Trace("serve conn ok")
 }
@@ -212,7 +211,7 @@ func (conn *Conn) EnqueueSourceMessage(msg *RtmpMessage) (err error) {
 	}()
 
 	select {
-	case conn.InChannel <- msg:
+	case conn.OutChannel <- msg:
 		break
 	default:
 		conn.Logger.Warn("drop source message for channel full")

@@ -96,6 +96,7 @@ func (stage *connectStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error)
 
         // check vhost
         // TODO: FIXME: implements it
+        req.Vhost = "__defaultVhost__"
         logger.Info("check vhost success.")
 
         logger.Trace("connect app, tcUrl=%v, pageUrl=%v, swfUrl=%v, schema=%v, vhost=%v, port=%v, app=%v, args=%v",
@@ -378,10 +379,11 @@ type playingStage struct {
 }
 
 func (stage *playingStage) Cleanup() {
+    stage.source.DestroyConsumer(stage.conn)
 }
 
 func (stage *playingStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
-    stage.conn.Logger.Info("playing got message")
+    stage.conn.Logger.Info("playing got message %v", msg)
     return
 }
 

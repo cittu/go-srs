@@ -26,6 +26,7 @@ package rtmp
 import (
     "github.com/winlinvip/go-srs/protocol"
     "github.com/winlinvip/go-srs/core"
+    "fmt"
 )
 
 type RtmpSource struct {
@@ -51,7 +52,15 @@ func (source *RtmpSource) CreateConsumer(conn *protocol.Conn) *RtmpConsumer {
         logger: conn.Logger,
     }
     source.Consumers[conn] = v
+    source.Logger.Info("create consumer %v", v)
     return v
+}
+
+func (source *RtmpSource) DestroyConsumer(conn *protocol.Conn) {
+    if consumer,ok := source.Consumers[conn]; ok {
+        source.Logger.Info("remove consumer %v", consumer)
+    }
+    delete(source.Consumers, conn)
 }
 
 func (source *RtmpSource) Initialize() (err error) {
@@ -119,6 +128,7 @@ func (source *RtmpSource) OnMessage(msg *protocol.RtmpMessage) (err error) {
 
 func (source *RtmpSource) OnAudio(msg *protocol.RtmpMessage) (err error) {
     for _,consumer := range source.Consumers {
+        source.Logger.Info("enqueue audio for consumer")
         if err = consumer.Enqueue(msg); err != nil {
             return
         }
@@ -128,6 +138,7 @@ func (source *RtmpSource) OnAudio(msg *protocol.RtmpMessage) (err error) {
 
 func (source *RtmpSource) OnVideo(msg *protocol.RtmpMessage) (err error) {
     for _,consumer := range source.Consumers {
+        source.Logger.Info("enqueue video for consumer")
         if err = consumer.Enqueue(msg); err != nil {
             return
         }
@@ -169,6 +180,10 @@ type RtmpConsumer struct {
 
 func NewRtmpConsumer(source *RtmpSource, conn *protocol.Conn) *RtmpConsumer {
     return source.CreateConsumer(conn)
+}
+
+func (consumer *RtmpConsumer) String() string {
+    return fmt.Sprintf("cid=%v", consumer.conn.SrsId)
 }
 
 func (consumer *RtmpConsumer) Enqueue(msg *protocol.RtmpMessage) (err error) {
