@@ -32,13 +32,26 @@ type RtmpSource struct {
     Req *protocol.RtmpRequest
     Logger core.Logger
     SrsId int
+    Consumers map[*protocol.Conn]*RtmpConsumer
 }
 
 func NewRtmpSource(req *protocol.RtmpRequest, logger core.Logger) *RtmpSource {
-    return &RtmpSource{
+    v := &RtmpSource{
         Req: req,
         Logger: logger,
     }
+    v.Consumers = make(map[*protocol.Conn]*RtmpConsumer)
+    return v
+}
+
+func (source *RtmpSource) CreateConsumer(conn *protocol.Conn) *RtmpConsumer {
+    v := &RtmpConsumer{
+        source: source,
+        conn: conn,
+        logger: conn.Logger,
+    }
+    source.Consumers[conn] = v
+    return v
 }
 
 func (source *RtmpSource) Initialize() (err error) {
@@ -105,10 +118,20 @@ func (source *RtmpSource) OnMessage(msg *protocol.RtmpMessage) (err error) {
 }
 
 func (source *RtmpSource) OnAudio(msg *protocol.RtmpMessage) (err error) {
+    for _,consumer := range source.Consumers {
+        if err = consumer.Enqueue(msg); err != nil {
+            return
+        }
+    }
     return
 }
 
 func (source *RtmpSource) OnVideo(msg *protocol.RtmpMessage) (err error) {
+    for _,consumer := range source.Consumers {
+        if err = consumer.Enqueue(msg); err != nil {
+            return
+        }
+    }
     return
 }
 
@@ -139,11 +162,19 @@ func FindSource(req *protocol.RtmpRequest, logger core.Logger) (source *RtmpSour
 }
 
 type RtmpConsumer struct {
+    logger core.Logger
     source *RtmpSource
+    conn *protocol.Conn
 }
 
-func NewRtmpConsumer(source *RtmpSource) *RtmpConsumer {
-    return &RtmpConsumer{
-        source: source,
+func NewRtmpConsumer(source *RtmpSource, conn *protocol.Conn) *RtmpConsumer {
+    return source.CreateConsumer(conn)
+}
+
+func (consumer *RtmpConsumer) Enqueue(msg *protocol.RtmpMessage) (err error) {
+    if err = consumer.conn.EnqueueSourceMessage(msg); err != nil {
+        consumer.logger.Error("enqueue source message failed.")
+        return
     }
+    return
 }

@@ -204,12 +204,29 @@ func (conn *Conn) pumpMessage() {
 	}
 }
 
+func (conn *Conn) EnqueueSourceMessage(msg *RtmpMessage) (err error) {
+	defer func(){
+		if err := recover(); err != nil {
+			conn.Logger.Warn("ignore the source msg enqueue failed. err is %v", err)
+		}
+	}()
+
+	select {
+	case conn.InChannel <- msg:
+		break
+	default:
+		conn.Logger.Warn("drop source message for channel full")
+		break
+	}
+	return
+}
+
 func (conn *Conn) EnqueueOutgoingMessage(msg *RtmpMessage) (err error) {
 	select {
 	case conn.OutChannel <- msg:
 		break
 	default:
-		conn.Logger.Warn("drop message for channel full")
+		conn.Logger.Warn("drop outgoing message for channel full")
 		break
 	}
 	return

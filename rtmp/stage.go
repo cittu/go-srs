@@ -366,6 +366,7 @@ func (stage *playStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
     stage.conn.Stage = &playingStage{
         conn: stage.conn,
         source: source,
+        consumer: NewRtmpConsumer(source, stage.conn),
     }
     return
 }
@@ -373,6 +374,7 @@ func (stage *playStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
 type playingStage struct {
     conn *protocol.Conn
     source *RtmpSource
+    consumer *RtmpConsumer
 }
 
 func (stage *playingStage) Cleanup() {
