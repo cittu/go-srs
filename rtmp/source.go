@@ -27,6 +27,7 @@ import (
     "github.com/winlinvip/go-srs/protocol"
     "github.com/winlinvip/go-srs/core"
     "fmt"
+    "sync"
 )
 
 type RtmpSource struct {
@@ -34,6 +35,7 @@ type RtmpSource struct {
     Logger core.Logger
     SrsId int
     Consumers map[*protocol.Conn]*RtmpConsumer
+    Locker sync.Mutex
 }
 
 func NewRtmpSource(req *protocol.RtmpRequest, logger core.Logger) *RtmpSource {
@@ -46,6 +48,9 @@ func NewRtmpSource(req *protocol.RtmpRequest, logger core.Logger) *RtmpSource {
 }
 
 func (source *RtmpSource) CreateConsumer(conn *protocol.Conn) *RtmpConsumer {
+    source.Locker.Lock()
+    defer source.Locker.Unlock()
+
     v := &RtmpConsumer{
         source: source,
         conn: conn,
@@ -57,6 +62,9 @@ func (source *RtmpSource) CreateConsumer(conn *protocol.Conn) *RtmpConsumer {
 }
 
 func (source *RtmpSource) DestroyConsumer(conn *protocol.Conn) {
+    source.Locker.Lock()
+    defer source.Locker.Unlock()
+
     if consumer,ok := source.Consumers[conn]; ok {
         source.Logger.Info("remove consumer %v", consumer)
     }

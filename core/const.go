@@ -28,7 +28,7 @@ const (
 	SrsSignature = "SRS(Simple RTMP Server)"
 	SrsUrl = "SRS(http://github.com/winlinvip/simple-rtmp-server)"
 
-	Cpus = 4
+	Cpus = 8
 	ListenApi = 1986
 	ListenRtmp = 1935
 )
