@@ -188,6 +188,7 @@ func (conn *Conn) pumpMessage() {
 			}
 			return
 		}
+		conn.Logger.Info("pump message from protocol")
 
 		if msg == nil {
 			continue
@@ -203,12 +204,14 @@ func (conn *Conn) pumpMessage() {
 	}
 }
 
-func (conn *Conn) EnqueueSourceMessage(msg *RtmpMessage) (err error) {
+func (conn *Conn) EnqueueSourceMessage(msg *RtmpMessage, streamId int) (err error) {
 	defer func(){
 		if err := recover(); err != nil {
 			conn.Logger.Warn("ignore the source msg enqueue failed. err is %v", err)
 		}
 	}()
+
+	msg.Header.StreamId = int32(streamId)
 
 	select {
 	case conn.OutChannel <- msg:

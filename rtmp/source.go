@@ -187,7 +187,7 @@ func (consumer *RtmpConsumer) String() string {
 }
 
 func (consumer *RtmpConsumer) Enqueue(msg *protocol.RtmpMessage) (err error) {
-    if err = consumer.conn.EnqueueSourceMessage(msg); err != nil {
+    if err = consumer.conn.EnqueueSourceMessage(msg, consumer.conn.StreamId); err != nil {
         consumer.logger.Error("enqueue source message failed.")
         return
     }

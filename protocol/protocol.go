@@ -438,7 +438,42 @@ func (proto *Protocol) SendMessage(msg *RtmpMessage) (err error) {
 		nbSent += payloadSize
 		proto.Logger.Info("write %vB chunk payload ok, %v/%v", payloadSize, nbSent, msg.Header.PayloadLength)
 	}
+
+	// when sent message, filter it.
+	if err = proto.onSendMessage(msg); err != nil {
+		return
+	}
 	proto.Logger.Info("send msg ok")
+
+	return
+}
+
+func (proto *Protocol) onSendMessage(msg *RtmpMessage) (err error) {
+	var pkt RtmpPacket
+	switch msg.Header.MessageType {
+	case RTMP_MSG_AMF0CommandMessage:
+		fallthrough
+	case RTMP_MSG_AMF3CommandMessage:
+		fallthrough
+	case RTMP_MSG_SetChunkSize:
+		if pkt,err = proto.DecodeMessage(msg); err != nil {
+			proto.Logger.Error("decode packet from message payload failed.")
+			return
+		}
+		proto.Logger.Info("decode packet from message payload ok.")
+	default:
+		return
+	}
+
+	switch pkt := pkt.(type) {
+	case *RtmpSetChunkSizePacket:
+		proto.OutChunkSize = int(pkt.ChunkSize)
+		proto.Logger.Trace("out chunk size to %v", pkt.ChunkSize)
+	// TODO: FIXME: implements it.
+	// case *RtmConnectAppPacket
+	// case *RtmCreateStreamPacket
+	// case *RtmReleaseStreamPacket
+	}
 
 	return
 }
@@ -503,6 +538,8 @@ func (proto *Protocol) onRecvMessage(msg *RtmpMessage) (err error) {
 			return
 		}
 		proto.Logger.Info("decode packet from message payload success.")
+	default:
+		return
 	}
 
 	switch pkt := pkt.(type) {
