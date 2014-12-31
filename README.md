@@ -57,4 +57,10 @@ The play benchmark by [st-load](https://github.com/winlinvip/st-load):
     </tr>
 </table>
 
+## Features
+
+* VP6 codec stream.
+* FMLE/FFMPEG/Flash publish.
+* Flash/VLC/st-load play.
+
 Winlin 2014.11
