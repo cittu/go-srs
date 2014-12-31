@@ -59,7 +59,7 @@ The play benchmark by [st-load](https://github.com/winlinvip/st-load):
 
 ## Features
 
-The features added in milestone 3.0.1:
+The features added in milestone [3.0.1](https://github.com/winlinvip/go-srs/releases/tag/3.0.1):
 
 * VP6 codec stream.
 * FMLE/FFMPEG/Flash publish.
