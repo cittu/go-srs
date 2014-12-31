@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2014 winlin
+Copyright (c) 2013-2015 winlin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -35,7 +35,7 @@ const (
     RTMP_SIG_SRS_WEB = "http://blog.csdn.net/win_lin"
     RTMP_SIG_SRS_EMAIL = "winlin@vip.126.com"
     RTMP_SIG_SRS_LICENSE = "The MIT License (MIT)"
-    RTMP_SIG_SRS_COPYRIGHT = "Copyright (c) 2013-2014 winlin"
+    RTMP_SIG_SRS_COPYRIGHT = "Copyright (c) 2013-2015 winlin"
     RTMP_SIG_SRS_PRIMARY = "winlin"
 )
 

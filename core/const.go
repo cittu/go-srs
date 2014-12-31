@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2014 winlin
+Copyright (c) 2013-2015 winlin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -24,7 +24,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 package core
 
 const (
-	Copyright = "Copyright (c) 2013-2014"
+	Copyright = "Copyright (c) 2013-2015"
 	SrsSignature = "SRS(Simple RTMP Server)"
 	SrsUrl = "SRS(http://github.com/winlinvip/simple-rtmp-server)"
 
