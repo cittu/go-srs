@@ -304,6 +304,12 @@ func (stage *playStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
 
     // set chunk size to larger.
     // TODO: FIXME: implements it.
+    chunkSize := 60000
+    if err = stage.conn.SetChunkSize(chunkSize); err != nil {
+        logger.Error("set chunk_size=%v failed.", chunkSize)
+        return
+    }
+    logger.Info("set chunk_size=%v success", chunkSize)
 
     // find a source to serve.
     var source *RtmpSource
@@ -326,7 +332,35 @@ func (stage *playStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
     }
     logger.Info("send PCUC(StreamBegin) message success.")
 
-    // TODO: FIXME: implements it.
+    // onStatus(NetStream.Play.Reset)
+    if err = stage.conn.OnStatusPlay(stage.conn.StreamId); err != nil {
+        logger.Error("send onStatus(NetStream.Play.Reset) message failed.")
+        return
+    }
+    logger.Info("send onStatus(NetStream.Play.Reset) message success.")
+
+    // onStatus(NetStream.Play.Start)
+    if err = stage.conn.OnStatusStreamStart(stage.conn.StreamId); err != nil {
+        logger.Error("send onStatus(NetStream.Play.Start) message failed")
+        return
+    }
+    logger.Info("send onStatus(NetStream.Play.Start) message success.")
+
+    // |RtmpSampleAccess(false, false)
+    // allow audio/video sample.
+    // @see: https://github.com/winlinvip/simple-rtmp-server/issues/49
+    if err = stage.conn.SampleAccess(stage.conn.StreamId, true, true); err != nil {
+        logger.Error("send |RtmpSampleAccess(false, false) message failed")
+        return
+    }
+    logger.Info("send |RtmpSampleAccess(false, false) message success.")
+
+    // onStatus(NetStream.Data.Start)
+    if err = stage.conn.OnStatusData(stage.conn.StreamId); err != nil {
+        logger.Error("send onStatus(NetStream.Data.Start) message failed")
+        return
+    }
+    logger.Info("send onStatus(NetStream.Data.Start) message failed")
 
     logger.Info("start to play stream %v", stage.streamName)
     stage.conn.Stage = &playingStage{
@@ -345,6 +379,7 @@ func (stage *playingStage) Cleanup() {
 }
 
 func (stage *playingStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
+    stage.conn.Logger.Info("playing got message")
     return
 }
 
@@ -367,6 +402,12 @@ func (stage *fmlePublishStage) ConsumeMessage(msg *protocol.RtmpMessage) (err er
 
     // set chunk size to larger.
     // TODO: FIXME: implements it.
+    chunkSize := 60000
+    if err = stage.conn.SetChunkSize(chunkSize); err != nil {
+        logger.Error("set chunk_size=%v failed.", chunkSize)
+        return
+    }
+    logger.Info("set chunk_size=%v success", chunkSize)
 
     // find a source to serve.
     var source *RtmpSource
@@ -440,7 +481,7 @@ func (stage *fmlePublishStartStage) ConsumeMessage(msg *protocol.RtmpMessage) (e
         }
         logger.Info("send onFCPublish(NetStream.Publish.Start) message success.")
         // publish response onStatus(NetStream.Publish.Start)
-        if err = stage.conn.OnStatus(stage.conn.StreamId); err != nil {
+        if err = stage.conn.OnStatusPublish(stage.conn.StreamId); err != nil {
             logger.Error("send onStatus(NetStream.Publish.Start) message failed")
             return
         }
@@ -522,6 +563,12 @@ func (stage *flashPublishStage) ConsumeMessage(msg *protocol.RtmpMessage) (err e
 
     // set chunk size to larger.
     // TODO: FIXME: implements it.
+    chunkSize := 60000
+    if err = stage.conn.SetChunkSize(chunkSize); err != nil {
+        logger.Error("set chunk_size=%v failed.", chunkSize)
+        return
+    }
+    logger.Info("set chunk_size=%v success", chunkSize)
 
     // TODO: FIXME: implements it.
     return

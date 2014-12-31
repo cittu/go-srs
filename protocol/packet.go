@@ -1142,3 +1142,118 @@ func (pkt *RtmpOnStatusCallPacket) MessageType() byte {
 func (pkt *RtmpOnStatusCallPacket) PerferCid() int {
     return RTMP_CID_OverStream
 }
+
+/**
+* AMF0Data RtmpSampleAccess
+* @remark, user must set the stream_id by SrsCommonMessage.set_packet().
+*/
+type RtmpSampleAccessPacket struct {
+    /**
+    * Name of command. Set to "|RtmpSampleAccess".
+    */
+    CommandName Amf0String
+    /**
+    * whether allow access the sample of video.
+    * @see: https://github.com/winlinvip/simple-rtmp-server/issues/49
+    * @see: http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/net/NetStream.html#videoSampleAccess
+    */
+    VideoSampleAccess Amf0Boolean
+    /**
+    * whether allow access the sample of audio.
+    * @see: https://github.com/winlinvip/simple-rtmp-server/issues/49
+    * @see: http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/net/NetStream.html#audioSampleAccess
+    */
+    AudioSampleAccess Amf0Boolean
+}
+
+func NewRtmpSampleAccessPacket() RtmpPacket {
+    v := &RtmpSampleAccessPacket{}
+    v.CommandName = Amf0String(RTMP_AMF0_DATA_SAMPLE_ACCESS)
+    return v
+}
+
+func (pkt *RtmpSampleAccessPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if pkt.CommandName,err = DecodeAmf0String(buffer); err != nil {
+        return
+    }
+    if pkt.VideoSampleAccess,err = DecodeAmf0Boolean(buffer); err != nil {
+        return
+    }
+    if pkt.AudioSampleAccess,err = DecodeAmf0Boolean(buffer); err != nil {
+        return
+    }
+    return
+}
+
+func (pkt *RtmpSampleAccessPacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = EncodeAmf0String(buffer, pkt.CommandName); err != nil {
+        return
+    }
+    if err = EncodeAmf0Boolean(buffer, pkt.VideoSampleAccess); err != nil {
+        return
+    }
+    if err = EncodeAmf0Boolean(buffer, pkt.AudioSampleAccess); err != nil {
+        return
+    }
+    return
+}
+
+func (pkt *RtmpSampleAccessPacket) MessageType() byte {
+    return RTMP_MSG_AMF0DataMessage
+}
+
+func (pkt *RtmpSampleAccessPacket) PerferCid() int {
+    return RTMP_CID_OverStream
+}
+
+/**
+* onStatus data, AMF0 Data
+* @remark, user must set the stream_id by SrsCommonMessage.set_packet().
+*/
+type RtmpOnStatusDataPacket struct {
+    /**
+    * Name of command. Set to "onStatus"
+    */
+    CommandName Amf0String
+    /**
+    * Name-value pairs that describe the response from the server.
+    * ‘code’, are names of few among such information.
+    * @remark, never be NULL, an AMF0 object instance.
+    */
+    Data *Amf0Object
+}
+
+func NewRtmpOnStatusDataPacket() RtmpPacket {
+    v := &RtmpOnStatusDataPacket{}
+    v.CommandName = Amf0String(RTMP_AMF0_COMMAND_ON_STATUS)
+    v.Data = NewAmf0Object()
+    return v
+}
+
+func (pkt *RtmpOnStatusDataPacket) Decode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if pkt.CommandName,err = DecodeAmf0String(buffer); err != nil {
+        return
+    }
+    if err = pkt.Data.Decode(buffer); err != nil {
+        return
+    }
+    return
+}
+
+func (pkt *RtmpOnStatusDataPacket) Encode(buffer *bytes.Buffer, logger core.Logger) (err error) {
+    if err = EncodeAmf0String(buffer, pkt.CommandName); err != nil {
+        return
+    }
+    if err = pkt.Data.Encode(buffer); err != nil {
+        return
+    }
+    return
+}
+
+func (pkt *RtmpOnStatusDataPacket) MessageType() byte {
+    return RTMP_MSG_AMF0DataMessage
+}
+
+func (pkt *RtmpOnStatusDataPacket) PerferCid() int {
+    return RTMP_CID_OverStream
+}

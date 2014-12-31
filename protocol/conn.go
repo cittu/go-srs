@@ -340,12 +340,76 @@ func (conn *Conn) ResponsePublish(transactionId float64, streamId int) (err erro
 	return conn.EnqueueOutgoingMessage(msg)
 }
 
-func (conn *Conn) OnStatus(streamId int) (err error) {
+func (conn *Conn) OnStatusPublish(streamId int) (err error) {
 	pkt := NewRtmpOnStatusCallPacket().(*RtmpOnStatusCallPacket)
 	pkt.Data.Set(StatusLevel, Amf0String(StatusLevelStatus))
 	pkt.Data.Set(StatusCode, Amf0String(StatusCodePublishStart))
 	pkt.Data.Set(StatusDescription, Amf0String("Started publishing stream."))
 	pkt.Data.Set(StatusClientId, Amf0String(RTMP_SIG_CLIENT_ID))
+
+	var msg *RtmpMessage
+	if msg,err = conn.Protocol.EncodeMessage(pkt, streamId); err != nil {
+		return
+	}
+	return conn.EnqueueOutgoingMessage(msg)
+}
+
+func (conn *Conn) OnStatusPlay(streamId int) (err error) {
+	pkt := NewRtmpOnStatusCallPacket().(*RtmpOnStatusCallPacket)
+	pkt.Data.Set(StatusLevel, Amf0String(StatusLevelStatus))
+	pkt.Data.Set(StatusCode, Amf0String(StatusCodeStreamReset))
+	pkt.Data.Set(StatusDescription, Amf0String("Playing and resetting stream."))
+	pkt.Data.Set(StatusDetails, Amf0String("stream"))
+	pkt.Data.Set(StatusClientId, Amf0String(RTMP_SIG_CLIENT_ID))
+
+	var msg *RtmpMessage
+	if msg,err = conn.Protocol.EncodeMessage(pkt, streamId); err != nil {
+		return
+	}
+	return conn.EnqueueOutgoingMessage(msg)
+}
+
+func (conn *Conn) OnStatusStreamStart(streamId int) (err error) {
+	pkt := NewRtmpOnStatusCallPacket().(*RtmpOnStatusCallPacket)
+	pkt.Data.Set(StatusLevel, Amf0String(StatusLevelStatus))
+	pkt.Data.Set(StatusCode, Amf0String(StatusCodeStreamStart))
+	pkt.Data.Set(StatusDescription, Amf0String("Started playing stream."))
+	pkt.Data.Set(StatusDetails, Amf0String("stream"))
+	pkt.Data.Set(StatusClientId, Amf0String(RTMP_SIG_CLIENT_ID))
+
+	var msg *RtmpMessage
+	if msg,err = conn.Protocol.EncodeMessage(pkt, streamId); err != nil {
+		return
+	}
+	return conn.EnqueueOutgoingMessage(msg)
+}
+
+func (conn *Conn) OnStatusData(streamId int) (err error) {
+	pkt := NewRtmpOnStatusDataPacket().(*RtmpOnStatusDataPacket)
+	pkt.Data.Set(StatusCode, Amf0String(StatusCodeDataStart))
+
+	var msg *RtmpMessage
+	if msg,err = conn.Protocol.EncodeMessage(pkt, streamId); err != nil {
+		return
+	}
+	return conn.EnqueueOutgoingMessage(msg)
+}
+
+func (conn *Conn) SetChunkSize(chunkSize int) (err error) {
+	pkt := NewRtmpSetChunkSizePacket().(*RtmpSetChunkSizePacket)
+	pkt.ChunkSize = int32(chunkSize)
+
+	var msg *RtmpMessage
+	if msg,err = conn.Protocol.EncodeMessage(pkt, 0); err != nil {
+		return
+	}
+	return conn.EnqueueOutgoingMessage(msg)
+}
+
+func (conn *Conn) SampleAccess(streamId int, vsa, asa bool) (err error) {
+	pkt := NewRtmpSampleAccessPacket().(*RtmpSampleAccessPacket)
+	pkt.VideoSampleAccess = Amf0Boolean(vsa)
+	pkt.AudioSampleAccess = Amf0Boolean(asa)
 
 	var msg *RtmpMessage
 	if msg,err = conn.Protocol.EncodeMessage(pkt, streamId); err != nil {
