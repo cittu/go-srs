@@ -453,6 +453,7 @@ func (stage *fmlePublishStartStage) Cleanup() {
 
 func (stage *fmlePublishStartStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
     logger := stage.conn.Logger
+    logger.Info("fmle publish start stage consume message %v", msg)
 
     var pkt protocol.RtmpPacket
     if pkt,err = stage.conn.Protocol.DecodeMessage(msg); err != nil {
@@ -527,6 +528,7 @@ func (stage *fmlePublishingStage) Cleanup() {
 
 func (stage *fmlePublishingStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
     logger := stage.conn.Logger
+    logger.Info("fmle publising stage consume msg %v", msg)
 
     // process publish event.
     if msg.Header.IsAmf3Command() || msg.Header.IsAmf0Command() {
