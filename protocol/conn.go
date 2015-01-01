@@ -108,6 +108,13 @@ func (conn *Conn) Serve() {
 }
 
 func (conn *Conn) recvMessage() (err error) {
+	defer func(){
+		conn.Logger.Info("cleanup the stage %v", conn.Stage)
+		// always cleanup for recv message.
+		conn.Stage.Cleanup()
+	}()
+
+	conn.Logger.Info("start recv message loop")
 	for {
 		select {
 			// the send message goroutine will close this channel when error
@@ -121,7 +128,6 @@ func (conn *Conn) recvMessage() (err error) {
 			}
 			conn.Logger.Info("consume received msg %v", msg)
 			if err = conn.Stage.ConsumeMessage(msg); err != nil {
-				conn.Stage.Cleanup()
 				return
 			}
 			continue

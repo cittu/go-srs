@@ -296,6 +296,7 @@ type playStage struct {
 }
 
 func (stage *playStage) Cleanup() {
+    stage.conn.Logger.Info("play stage cleanup")
 }
 
 func (stage *playStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
@@ -379,6 +380,7 @@ type playingStage struct {
 }
 
 func (stage *playingStage) Cleanup() {
+    stage.conn.Logger.Info("playing stage cleanup")
     stage.source.DestroyConsumer(stage.conn)
 }
 
