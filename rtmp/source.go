@@ -35,7 +35,7 @@ type RtmpSource struct {
     Logger core.Logger
     SrsId int
     Consumers map[*protocol.Conn]*RtmpConsumer
-    Locker sync.Mutex
+    ConsumerLocker sync.Mutex // the consumers must be locked for multiple goroutines will access it.
 }
 
 func NewRtmpSource(req *protocol.RtmpRequest, logger core.Logger) *RtmpSource {
@@ -48,8 +48,8 @@ func NewRtmpSource(req *protocol.RtmpRequest, logger core.Logger) *RtmpSource {
 }
 
 func (source *RtmpSource) CreateConsumer(conn *protocol.Conn) *RtmpConsumer {
-    source.Locker.Lock()
-    defer source.Locker.Unlock()
+    source.ConsumerLocker.Lock()
+    defer source.ConsumerLocker.Unlock()
 
     v := &RtmpConsumer{
         source: source,
@@ -62,8 +62,8 @@ func (source *RtmpSource) CreateConsumer(conn *protocol.Conn) *RtmpConsumer {
 }
 
 func (source *RtmpSource) DestroyConsumer(conn *protocol.Conn) {
-    source.Locker.Lock()
-    defer source.Locker.Unlock()
+    source.ConsumerLocker.Lock()
+    defer source.ConsumerLocker.Unlock()
 
     if consumer,ok := source.Consumers[conn]; ok {
         source.Logger.Info("remove consumer %v", consumer)
@@ -135,6 +135,9 @@ func (source *RtmpSource) OnMessage(msg *protocol.RtmpMessage) (err error) {
 }
 
 func (source *RtmpSource) OnAudio(msg *protocol.RtmpMessage) (err error) {
+    source.ConsumerLocker.Lock()
+    defer source.ConsumerLocker.Unlock()
+
     for _,consumer := range source.Consumers {
         source.Logger.Info("enqueue audio for consumer")
         if err = consumer.Enqueue(msg); err != nil {
@@ -145,6 +148,9 @@ func (source *RtmpSource) OnAudio(msg *protocol.RtmpMessage) (err error) {
 }
 
 func (source *RtmpSource) OnVideo(msg *protocol.RtmpMessage) (err error) {
+    source.ConsumerLocker.Lock()
+    defer source.ConsumerLocker.Unlock()
+
     for _,consumer := range source.Consumers {
         source.Logger.Info("enqueue video for consumer")
         if err = consumer.Enqueue(msg); err != nil {
