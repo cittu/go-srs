@@ -48,7 +48,7 @@ The play benchmark by [st-load](https://github.com/winlinvip/st-load):
     </tr>
     <tr>
         <td>2014-12-31</td>
-        <td>3.0.1</td>
+        <td>0.0.1</td>
         <td>10k(10000)</td>
         <td>players</td>
         <td>547.7%</td>
@@ -59,7 +59,7 @@ The play benchmark by [st-load](https://github.com/winlinvip/st-load):
 
 ## Features
 
-The features added in milestone 3.0.1:
+The features added in milestone 0.0.1:
 
 * VP6 codec stream.
 * FMLE/FFMPEG/Flash publish.
