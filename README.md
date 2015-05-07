@@ -1,7 +1,7 @@
 go-srs
 ======
 
-golang for https://github.com/winlinvip/simple-rtmp-server
+golang for https://github.com/simple-rtmp-server/srs
 
 ## Usage
 
