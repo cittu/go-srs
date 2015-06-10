@@ -27,7 +27,7 @@ import "fmt"
 
 // server info.
 const (
-    RTMP_SIG_SRS_KEY = "GOSRS"
+    RTMP_SIG_SRS_KEY = "GOCRS"
     RTMP_SIG_SRS_ROLE = "origin/edge server"
     RTMP_SIG_SRS_NAME = RTMP_SIG_SRS_KEY + "(Cittu RTMP Server)"
     RTMP_SIG_SRS_URL_SHORT = "github.com/cittu/go-srs"

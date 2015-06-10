@@ -26,7 +26,7 @@ package core
 const (
 	Copyright = "Copyright (c) 2015"
 	SrsSignature = "CRS(Cittu RTMP Server)"
-	SrsUrl = "SRS(http://github.com/cittu/go-srs)"
+	SrsUrl = "CRS(http://github.com/cittu/go-srs)"
 
 	Cpus = 8
 	ListenApi = 1986

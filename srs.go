@@ -54,7 +54,7 @@ func main() {
 	}()
 
 	http.HandleFunc("/api/v3/version", func(w http.ResponseWriter, req *http.Request) {
-		w.Header().Set("Server", fmt.Sprintf("SRS/%d.%d.%d",
+		w.Header().Set("Server", fmt.Sprintf("CRS/%d.%d.%d",
 			core.Major, core.Minor, core.Revision))
 		w.Header().Set("Content-Type", "application/json")
 
