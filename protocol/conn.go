@@ -30,7 +30,7 @@ import (
 	"runtime"
 	"io"
 	"errors"
-	"github.com/winlinvip/go-srs/core"
+	"github.com/cittu/go-srs/core"
 	"fmt"
 	"os"
 )

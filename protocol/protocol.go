@@ -24,7 +24,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 package protocol
 
 import (
-	"github.com/winlinvip/go-srs/core"
+	"github.com/cittu/go-srs/core"
 	"net"
 	"encoding/binary"
 	"io"

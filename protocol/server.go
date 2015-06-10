@@ -25,7 +25,7 @@ package protocol
 
 import (
 	"net"
-	"github.com/winlinvip/go-srs/core"
+	"github.com/cittu/go-srs/core"
 )
 
 type Server struct {

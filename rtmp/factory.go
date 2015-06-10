@@ -27,8 +27,8 @@ import (
     "os"
     "fmt"
     "log"
-    "github.com/winlinvip/go-srs/core"
-    "github.com/winlinvip/go-srs/protocol"
+    "github.com/cittu/go-srs/core"
+    "github.com/cittu/go-srs/protocol"
 )
 
 var goroutineIdSeed int = 99

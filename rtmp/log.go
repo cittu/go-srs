@@ -27,7 +27,7 @@ import (
     "log"
     "os"
     "fmt"
-    "github.com/winlinvip/go-srs/core"
+    "github.com/cittu/go-srs/core"
 )
 
 type Logger struct {

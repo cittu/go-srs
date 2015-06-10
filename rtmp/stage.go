@@ -24,10 +24,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 package rtmp
 
 import (
-    "github.com/winlinvip/go-srs/protocol"
+    "github.com/cittu/go-srs/protocol"
     "errors"
     "net"
-    "github.com/winlinvip/go-srs/core"
+    "github.com/cittu/go-srs/core"
 )
 
 var FinalStage = errors.New("rtmp final stage")
@@ -130,7 +130,7 @@ func (stage *connectStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error)
         // TODO: FIXME: implements it
 
         // do token traverse before serve it.
-        // @see https://github.com/winlinvip/simple-rtmp-server/pull/239
+        // @see https://github.com/cittu/simple-rtmp-server/pull/239
         // TODO: FIXME: implements it
 
         // response the client connect ok.
@@ -220,7 +220,7 @@ func (stage *identifyClientStage) ConsumeMessage(msg *protocol.RtmpMessage) (err
     case *protocol.RtmpCallPacket:
         // call msg,
         // support response null first,
-        // @see https://github.com/winlinvip/simple-rtmp-server/issues/106
+        // @see https://github.com/cittu/simple-rtmp-server/issues/106
         // TODO: FIXME: response in right way, or forward in edge mode.
         return
     default:
@@ -349,7 +349,7 @@ func (stage *playStage) ConsumeMessage(msg *protocol.RtmpMessage) (err error) {
 
     // |RtmpSampleAccess(false, false)
     // allow audio/video sample.
-    // @see: https://github.com/winlinvip/simple-rtmp-server/issues/49
+    // @see: https://github.com/cittu/simple-rtmp-server/issues/49
     if err = stage.conn.SampleAccess(stage.conn.StreamId, true, true); err != nil {
         logger.Error("send |RtmpSampleAccess(false, false) message failed")
         return

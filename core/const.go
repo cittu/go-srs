@@ -24,9 +24,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 package core
 
 const (
-	Copyright = "Copyright (c) 2013-2014"
-	SrsSignature = "SRS(Simple RTMP Server)"
-	SrsUrl = "SRS(http://github.com/winlinvip/simple-rtmp-server)"
+	Copyright = "Copyright (c) 2015"
+	SrsSignature = "CRS(Cittu RTMP Server)"
+	SrsUrl = "SRS(http://github.com/cittu/go-srs)"
 
 	Cpus = 8
 	ListenApi = 1986

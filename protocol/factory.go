@@ -23,7 +23,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 package protocol
 
-import "github.com/winlinvip/go-srs/core"
+import "github.com/cittu/go-srs/core"
 
 type Factory interface {
     core.Factory

@@ -29,8 +29,8 @@ import (
 	"net/http"
 	"encoding/json"
 	"runtime"
-	"github.com/winlinvip/go-srs/core"
-	"github.com/winlinvip/go-srs/rtmp"
+	"github.com/cittu/go-srs/core"
+	"github.com/cittu/go-srs/rtmp"
 )
 
 func main() {

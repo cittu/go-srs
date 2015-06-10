@@ -29,14 +29,14 @@ import "fmt"
 const (
     RTMP_SIG_SRS_KEY = "GOSRS"
     RTMP_SIG_SRS_ROLE = "origin/edge server"
-    RTMP_SIG_SRS_NAME = RTMP_SIG_SRS_KEY + "(Simple RTMP Server)"
-    RTMP_SIG_SRS_URL_SHORT = "github.com/winlinvip/go-srs"
+    RTMP_SIG_SRS_NAME = RTMP_SIG_SRS_KEY + "(Cittu RTMP Server)"
+    RTMP_SIG_SRS_URL_SHORT = "github.com/cittu/go-srs"
     RTMP_SIG_SRS_URL = "https://" + RTMP_SIG_SRS_URL_SHORT
-    RTMP_SIG_SRS_WEB = "http://blog.csdn.net/win_lin"
-    RTMP_SIG_SRS_EMAIL = "winlin@vip.126.com"
+    RTMP_SIG_SRS_WEB = "http://cittu.com/"
+    RTMP_SIG_SRS_EMAIL = "paavalan@cittu.com"
     RTMP_SIG_SRS_LICENSE = "The MIT License (MIT)"
-    RTMP_SIG_SRS_COPYRIGHT = "Copyright (c) 2013-2014 winlin"
-    RTMP_SIG_SRS_PRIMARY = "winlin"
+    RTMP_SIG_SRS_COPYRIGHT = "Copyright (c) 2015 Cittu"
+    RTMP_SIG_SRS_PRIMARY = "Cittu"
 )
 
 var RTMP_SIG_SRS_VERSION = fmt.Sprintf("%v.%v.%v", Major, Minor, Revision)

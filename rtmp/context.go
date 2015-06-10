@@ -23,7 +23,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 package rtmp
 
-import "github.com/winlinvip/go-srs/protocol"
+import "github.com/cittu/go-srs/protocol"
 
 type SrsInfo struct {
     SrsVersion string

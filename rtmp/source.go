@@ -24,8 +24,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 package rtmp
 
 import (
-    "github.com/winlinvip/go-srs/protocol"
-    "github.com/winlinvip/go-srs/core"
+    "github.com/cittu/go-srs/protocol"
+    "github.com/cittu/go-srs/core"
     "fmt"
     "sync"
 )
